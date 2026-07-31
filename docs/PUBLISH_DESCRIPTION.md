@@ -26,7 +26,8 @@ worlds untouched.
 - **Biome-pack compatibility** — active climate, surfaces, ores, carvers, and
   biome features remain available inside the islands.
 - **Bounded structure safety** — detached structure starts are rejected
-  without unbounded surface searches.
+  without unbounded surface searches; IDAS-only locate commands use a safe
+  nearby-search cap rather than risking a watchdog stall.
 - **Contained lakes and cave exposure** — occasional safe lakes plus sparse,
   wet-biased exposed cave biomes, glow lichen, and hanging vines.
 

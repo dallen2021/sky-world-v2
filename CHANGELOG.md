@@ -24,7 +24,13 @@ development-only and not released.
   start is installed in the chunk, rejecting mineshafts, villages, and modded
   starts whose representative pieces would hang in the void.
 - Keep validation bounded to at most 1,080 density samples even for extremely
-  large modded starts, and preserve weighted-set fallback to another entry.
+  large modded starts. Preserve weighted fallback for biome-invalid entries,
+  but stop immediately at envelope-invalid locations instead of constructing
+  every alternative structure in the same void chunk.
+- Cap IDAS-only `/locate` searches to eight placement rings in Sky World so a
+  rare structure reports that none is nearby instead of tripping the server
+  watchdog. Other structure namespaces and mixed searches retain their normal
+  radius.
 
 ## [1.3.0] — 2026-07-31
 

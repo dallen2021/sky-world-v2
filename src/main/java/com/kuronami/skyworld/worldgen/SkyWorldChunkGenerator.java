@@ -5,6 +5,8 @@ import com.kuronami.skyworld.worldgen.density.CaveBiomeDepthDensityFunction;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.mojang.serialization.Codec;
+import com.mojang.datafixers.util.Pair;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.RegistryAccess;
@@ -12,6 +14,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Biome;
@@ -105,6 +108,28 @@ public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
     }
 
     @Override
+    public Pair<BlockPos, Holder<Structure>> findNearestMapStructure(
+            ServerLevel level,
+            HolderSet<Structure> structures,
+            BlockPos position,
+            int searchRadius,
+            boolean skipKnownStructures
+    ) {
+        List<ResourceLocation> structureIds = structures.stream()
+                .map(holder -> holder.unwrapKey().map(ResourceKey::location).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        int boundedRadius = StructureLocateLimiter.limitRadius(searchRadius, structureIds);
+        return super.findNearestMapStructure(
+                level,
+                structures,
+                position,
+                boundedRadius,
+                skipKnownStructures
+        );
+    }
+
+    @Override
     public void createStructures(
             RegistryAccess registryAccess,
             ChunkGeneratorStructureState structureState,
@@ -171,7 +196,7 @@ public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
                 }
 
                 StructureSet.StructureSelectionEntry selected = candidates.get(selectedIndex);
-                if (tryGenerateSupportedStructure(
+                GenerationResult result = tryGenerateSupportedStructure(
                         selected,
                         structureManager,
                         registryAccess,
@@ -182,7 +207,8 @@ public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
                         chunkPos,
                         sectionPos,
                         validator
-                )) {
+                );
+                if (result != GenerationResult.INVALID) {
                     return;
                 }
                 candidates.remove(selectedIndex);
@@ -191,7 +217,7 @@ public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
         });
     }
 
-    private boolean tryGenerateSupportedStructure(
+    private GenerationResult tryGenerateSupportedStructure(
             StructureSet.StructureSelectionEntry entry,
             StructureManager structureManager,
             RegistryAccess registryAccess,
@@ -221,23 +247,36 @@ public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
                 biomePredicate
         );
         if (!start.isValid()) {
-            return false;
+            return GenerationResult.INVALID;
         }
 
         List<net.minecraft.world.level.levelgen.structure.BoundingBox> pieceBoxes =
                 start.getPieces().stream().map(StructurePiece::getBoundingBox).toList();
         if (!validator.isSupported(pieceBoxes)) {
+            SkyWorld.LOGGER.debug(
+                    "Rejected detached structure {} at start chunk {} with {} pieces and bounds {}",
+                    registryAccess.registryOrThrow(Registries.STRUCTURE).getKey(structure),
+                    chunkPos,
+                    pieceBoxes.size(),
+                    start.getBoundingBox()
+            );
             structureManager.setStartForStructure(
                     sectionPos,
                     structure,
                     StructureStart.INVALID_START,
                     chunk
             );
-            return false;
+            return GenerationResult.UNSUPPORTED;
         }
 
         structureManager.setStartForStructure(sectionPos, structure, start, chunk);
-        return true;
+        return GenerationResult.PLACED;
+    }
+
+    private enum GenerationResult {
+        PLACED,
+        INVALID,
+        UNSUPPORTED
     }
 
     private StructureEnvelopeValidator structureValidator(RandomState randomState) {

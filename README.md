@@ -124,6 +124,12 @@ blobs generate. The validator has a hard density-sample budget and never uses
 an unbounded surface search. Mods that intentionally place free-floating sky
 structures may need a future opt-out tag.
 
+IDAS groups dozens of individual structures into shared placements, and its
+locate mixin requests an unusually large search. In Sky World, IDAS-only
+`/locate` commands are therefore capped to eight placement rings. If no valid
+island-supported start exists in that nearby area, the command reports none
+instead of loading hundreds of void candidates until the watchdog fires.
+
 ## Building
 
 ```powershell
