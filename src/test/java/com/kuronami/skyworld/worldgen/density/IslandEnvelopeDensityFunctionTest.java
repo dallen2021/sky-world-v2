@@ -64,6 +64,64 @@ final class IslandEnvelopeDensityFunctionTest {
     }
 
     @Test
+    void spawnContinentsFitTheRevisedExplorationScale() {
+        for (long seed = 0; seed < 32; seed++) {
+            IslandEnvelopeDensityFunction function = function(seed);
+            IslandComponent component = function.cellDescriptor(0, 0).components().getFirst();
+            int diameter = 0;
+            for (int index = 0; index < 36; index++) {
+                double angle = index * Math.PI / 36.0;
+                diameter = Math.max(
+                        diameter,
+                        radialExtent(function, component, angle)
+                                + radialExtent(function, component, angle + Math.PI)
+                );
+            }
+
+            assertTrue(diameter >= 1_050, "spawn continent is too small: " + diameter);
+            assertTrue(diameter <= 1_500, "spawn continent is too large: " + diameter);
+        }
+    }
+
+    @Test
+    void continentalCoastlinesHaveStrongRadialVariation() {
+        int irregular = 0;
+        int sampled = 0;
+
+        for (long seed = 0; seed < 48; seed++) {
+            IslandEnvelopeDensityFunction function = function(seed);
+            IslandComponent component = function.cellDescriptor(0, 0).components().getFirst();
+            double[] radii = new double[72];
+            double sum = 0.0;
+
+            for (int index = 0; index < radii.length; index++) {
+                radii[index] = radialExtent(
+                        function,
+                        component,
+                        index * Math.PI * 2.0 / radii.length
+                );
+                sum += radii[index];
+            }
+
+            double mean = sum / radii.length;
+            double squaredDeviation = 0.0;
+            for (double radius : radii) {
+                squaredDeviation += (radius - mean) * (radius - mean);
+            }
+            double coefficientOfVariation = Math.sqrt(
+                    squaredDeviation / radii.length
+            ) / mean;
+            if (coefficientOfVariation >= 0.12) {
+                irregular++;
+            }
+            sampled++;
+        }
+
+        assertTrue(irregular / (double)sampled >= 0.85,
+                "expected strongly irregular coastlines but found " + irregular + "/" + sampled);
+    }
+
+    @Test
     void archetypeDistributionMatchesContinentalDefaults() {
         IslandEnvelopeDensityFunction function = function(44332211L);
         Map<IslandArchetype, Integer> counts = new EnumMap<>(IslandArchetype.class);
@@ -249,6 +307,23 @@ final class IslandEnvelopeDensityFunctionTest {
             extent += 4;
         }
         return extent;
+    }
+
+    private static int radialExtent(
+            IslandEnvelopeDensityFunction function,
+            IslandComponent component,
+            double angle
+    ) {
+        int furthest = 0;
+        int maximum = (int)Math.ceil(component.maxRadius() + SETTINGS.edgeWarp() + 256.0);
+        for (int radius = 0; radius <= maximum; radius += 4) {
+            int x = (int)Math.round(component.centerX() + Math.cos(angle) * radius);
+            int z = (int)Math.round(component.centerZ() + Math.sin(angle) * radius);
+            if (sample(function, x, SETTINGS.shoulderY(), z) > 0.0) {
+                furthest = radius;
+            }
+        }
+        return furthest;
     }
 
     private static void assertFraction(

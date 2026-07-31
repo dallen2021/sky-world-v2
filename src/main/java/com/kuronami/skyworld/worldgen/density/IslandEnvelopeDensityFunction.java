@@ -80,12 +80,6 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
         if (radiusScale <= 0.0) {
             return -1.0;
         }
-        double boundaryWarp = Mth.clamp(detailNoise.getValue(
-                        context.blockX() / 384.0,
-                        0.0,
-                        context.blockZ() / 384.0
-                ), -1.0, 1.0) * settings.edgeWarp();
-
         for (int offsetX = -1; offsetX <= 1; offsetX++) {
             for (int offsetZ = -1; offsetZ <= 1; offsetZ++) {
                 IslandCellDescriptor cell = cellDescriptor(
@@ -100,7 +94,7 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
                 for (IslandComponent component : cell.components()) {
                     strongest = Math.max(
                             strongest,
-                            componentDensity(context, component, radiusScale, boundaryWarp)
+                            componentDensity(context, component, radiusScale)
                     );
                 }
             }
@@ -112,17 +106,36 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
     private double componentDensity(
             FunctionContext context,
             IslandComponent component,
-            double radiusScale,
-            double boundaryWarp
+            double radiusScale
     ) {
-        double radiusX = Math.max(1.0, component.radiusX() * radiusScale);
-        double radiusZ = Math.max(1.0, component.radiusZ() * radiusScale);
-        double dx = context.blockX() - component.centerX();
-        double dz = context.blockZ() - component.centerZ();
-        double normalizedRadius = Math.sqrt(dx * dx / (radiusX * radiusX)
-                + dz * dz / (radiusZ * radiusZ));
-        double signedDistance = (1.0 - normalizedRadius) * Math.min(radiusX, radiusZ);
-        return signedDistance + boundaryWarp;
+        double strongest = -Double.MAX_VALUE;
+        for (IslandLobe lobe : component.lobes()) {
+            double centerX = component.centerX()
+                    + (lobe.centerX() - component.centerX()) * radiusScale;
+            double centerZ = component.centerZ()
+                    + (lobe.centerZ() - component.centerZ()) * radiusScale;
+            double radiusX = Math.max(1.0, lobe.radiusX() * radiusScale);
+            double radiusZ = Math.max(1.0, lobe.radiusZ() * radiusScale);
+            double dx = context.blockX() - centerX;
+            double dz = context.blockZ() - centerZ;
+            double localX = dx * lobe.cosRotation() + dz * lobe.sinRotation();
+            double localZ = -dx * lobe.sinRotation() + dz * lobe.cosRotation();
+            double normalizedRadius = Math.sqrt(localX * localX / (radiusX * radiusX)
+                    + localZ * localZ / (radiusZ * radiusZ));
+            double angle = Math.atan2(localZ / radiusZ, localX / radiusX);
+            double harmonic = 0.50 * Math.sin(angle * 2.0 + lobe.phase2())
+                    + 0.30 * Math.sin(angle * 3.0 + lobe.phase3())
+                    + 0.20 * Math.sin(angle * 5.0 + lobe.phase5());
+            double maximumWarp = Math.min(
+                    settings.edgeWarp() * lobe.warpScale(),
+                    Math.min(radiusX, radiusZ) * 0.25
+            );
+            double signedDistance = (1.0 - normalizedRadius)
+                    * Math.min(radiusX, radiusZ)
+                    + harmonic * maximumWarp * radiusScale;
+            strongest = Math.max(strongest, signedDistance);
+        }
+        return strongest;
     }
 
     private double verticalRadiusScale(double y) {
@@ -221,14 +234,18 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
         List<IslandComponent> components = new ArrayList<>(desiredCount);
 
         if (desiredCount == 1) {
-            double radius = chooseRadius(random, config, archetype, config.maxRadius());
-            double aspect = random.nextDouble(0.90, 1.10);
-            double axisScale = radius / Math.max(aspect, 1.0 / aspect);
-            return List.of(new IslandComponent(
+            double upperBound = archetype == IslandArchetype.CONTINENTAL
+                    && Math.abs(groupCenterX) < settings.cellSize() / 2.0
+                    && Math.abs(groupCenterZ) < settings.cellSize() / 2.0
+                    ? Math.min(config.maxRadius(), config.minRadius() + 75.0)
+                    : config.maxRadius();
+            double radius = chooseRadius(random, config, archetype, upperBound);
+            return List.of(createComponent(
+                    random,
                     groupCenterX,
                     groupCenterZ,
-                    axisScale * aspect,
-                    axisScale / aspect
+                    radius,
+                    config
             ));
         }
 
@@ -245,17 +262,122 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
 
         for (int index = 0; index < desiredCount; index++) {
             double angle = rotation + index * (Math.PI * 2.0 / desiredCount);
-            double aspect = random.nextDouble(0.90, 1.10);
-            double axisScale = radius / Math.max(aspect, 1.0 / aspect);
-            components.add(new IslandComponent(
+            components.add(createComponent(
+                    random,
                     groupCenterX + Math.cos(angle) * ringRadius,
                     groupCenterZ + Math.sin(angle) * ringRadius,
-                    axisScale * aspect,
-                    axisScale / aspect
+                    radius,
+                    config
             ));
         }
 
         return List.copyOf(components);
+    }
+
+    private IslandComponent createComponent(
+            SplittableRandom random,
+            double centerX,
+            double centerZ,
+            double targetRadius,
+            ArchetypeSettings config
+    ) {
+        double componentAspect = chooseComponentAspect(random, config);
+        double[] componentAxes = axes(targetRadius, componentAspect);
+        double componentRotation = random.nextDouble(0.0, Math.PI * 2.0);
+        int lobeCount = random.nextInt(config.minLobes(), config.maxLobes() + 1);
+        List<IslandLobe> lobes = new ArrayList<>(lobeCount);
+
+        double primaryScale = lobeCount <= 3
+                ? random.nextDouble(0.92, 0.98)
+                : random.nextDouble(0.70, 0.78);
+        lobes.add(createLobe(
+                random,
+                centerX,
+                centerZ,
+                componentAxes[0] * primaryScale,
+                componentAxes[1] * primaryScale,
+                componentRotation,
+                lobeCount <= 3 ? 0.30 : 0.56
+        ));
+
+        for (int index = 1; index < lobeCount; index++) {
+            double angle = componentRotation + random.nextDouble(0.0, Math.PI * 2.0);
+            double offset = targetRadius * random.nextDouble(0.35, 0.62);
+            double lobeRadius = targetRadius * random.nextDouble(0.30, 0.48);
+            double lobeAspect = random.nextDouble(
+                    Math.max(0.65, config.minAspect()),
+                    Math.min(1.45, config.maxAspect()) + Math.ulp(config.maxAspect())
+            );
+            double[] lobeAxes = axes(lobeRadius, lobeAspect);
+            lobes.add(createLobe(
+                    random,
+                    centerX + Math.cos(angle) * offset,
+                    centerZ + Math.sin(angle) * offset,
+                    lobeAxes[0],
+                    lobeAxes[1],
+                    random.nextDouble(0.0, Math.PI * 2.0),
+                    random.nextDouble(0.45, 0.85)
+            ));
+        }
+
+        return new IslandComponent(
+                centerX,
+                centerZ,
+                componentAxes[0],
+                componentAxes[1],
+                List.copyOf(lobes)
+        );
+    }
+
+    private static double chooseComponentAspect(
+            SplittableRandom random,
+            ArchetypeSettings config
+    ) {
+        if (config.minAspect() < 0.70 && config.maxAspect() > 1.36) {
+            boolean wide = random.nextBoolean();
+            return wide
+                    ? random.nextDouble(
+                            config.minAspect(),
+                            Math.min(0.70, config.maxAspect()) + Math.ulp(config.maxAspect())
+                    )
+                    : random.nextDouble(
+                            Math.max(1.36, config.minAspect()),
+                            config.maxAspect() + Math.ulp(config.maxAspect())
+                    );
+        }
+        return random.nextDouble(
+                config.minAspect(),
+                config.maxAspect() + Math.ulp(config.maxAspect())
+        );
+    }
+
+    private static IslandLobe createLobe(
+            SplittableRandom random,
+            double centerX,
+            double centerZ,
+            double radiusX,
+            double radiusZ,
+            double rotation,
+            double warpScale
+    ) {
+        return new IslandLobe(
+                centerX,
+                centerZ,
+                radiusX,
+                radiusZ,
+                Math.cos(rotation),
+                Math.sin(rotation),
+                warpScale,
+                random.nextDouble(0.0, Math.PI * 2.0),
+                random.nextDouble(0.0, Math.PI * 2.0),
+                random.nextDouble(0.0, Math.PI * 2.0)
+        );
+    }
+
+    private static double[] axes(double radius, double aspect) {
+        return aspect >= 1.0
+                ? new double[]{radius, radius / aspect}
+                : new double[]{radius * aspect, radius};
     }
 
     private static double chooseRadius(
@@ -341,7 +463,31 @@ record IslandComponent(
         double centerX,
         double centerZ,
         double radiusX,
-        double radiusZ
+        double radiusZ,
+        List<IslandLobe> lobes
+) {
+    double maxRadius() {
+        return lobes.stream()
+                .mapToDouble(lobe -> Math.hypot(
+                        lobe.centerX() - centerX,
+                        lobe.centerZ() - centerZ
+                ) + lobe.maxRadius())
+                .max()
+                .orElse(Math.max(radiusX, radiusZ));
+    }
+}
+
+record IslandLobe(
+        double centerX,
+        double centerZ,
+        double radiusX,
+        double radiusZ,
+        double cosRotation,
+        double sinRotation,
+        double warpScale,
+        double phase2,
+        double phase3,
+        double phase5
 ) {
     double maxRadius() {
         return Math.max(radiusX, radiusZ);

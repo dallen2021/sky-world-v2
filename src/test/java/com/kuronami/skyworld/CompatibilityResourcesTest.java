@@ -93,8 +93,11 @@ final class CompatibilityResourcesTest {
 
         assertNotNull(envelope, "Island density must use the continental envelope codec");
         JsonObject settings = envelope.getAsJsonObject("settings");
-        assertEquals(2560, settings.get("cell_size").getAsInt());
-        assertEquals(64, settings.get("center_jitter").getAsInt());
+        assertEquals(2048, settings.get("cell_size").getAsInt());
+        JsonObject continental = settings.getAsJsonObject("continental");
+        assertEquals(4, continental.get("min_lobes").getAsInt());
+        assertEquals(7, continental.get("max_lobes").getAsInt());
+        assertEquals(96, settings.get("center_jitter").getAsInt());
         assertEquals(112, settings.get("shoulder_y").getAsInt());
         assertEquals(-56, settings.get("bottom_y").getAsInt());
         assertEquals(304, settings.get("top_y").getAsInt());
