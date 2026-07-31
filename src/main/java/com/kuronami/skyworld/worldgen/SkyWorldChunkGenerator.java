@@ -8,10 +8,18 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
+import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.StructureManager;
+
+import java.util.Collections;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
     static final int DEFAULT_SURFACE_SHIFT = 96;
@@ -36,6 +44,8 @@ public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
     private final Holder<NoiseGeneratorSettings> activeOverworldSettings;
     private final Holder<NoiseGeneratorSettings> skyTerrainSettings;
     private final int surfaceShift;
+    private final Map<RandomState, ContainedLakeCarver.LakeRuntime> lakeRuntimes =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
     SkyWorldChunkGenerator(
             BiomeSource biomeSource,
@@ -71,6 +81,28 @@ public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
 
     int surfaceShift() {
         return surfaceShift;
+    }
+
+    @Override
+    public void buildSurface(
+            WorldGenRegion level,
+            StructureManager structureManager,
+            RandomState randomState,
+            ChunkAccess chunk
+    ) {
+        super.buildSurface(level, structureManager, randomState, chunk);
+        ContainedLakeCarver.LakeRuntime runtime;
+        synchronized (lakeRuntimes) {
+            runtime = lakeRuntimes.computeIfAbsent(
+                    randomState,
+                    ignored -> ContainedLakeCarver.createRuntime(
+                            randomState.router().finalDensity()
+                    )
+            );
+        }
+        if (runtime != null) {
+            ContainedLakeCarver.carveChunk(runtime, level, randomState, this, chunk);
+        }
     }
 
     @Override
