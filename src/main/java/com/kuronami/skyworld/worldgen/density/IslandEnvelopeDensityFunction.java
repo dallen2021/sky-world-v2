@@ -67,19 +67,6 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
         int baseCellX = nearestCell(context.blockX());
         int baseCellZ = nearestCell(context.blockZ());
         double strongest = -Double.MAX_VALUE;
-        double adjustedY = context.blockY();
-        if (adjustedY < settings.shoulderY()) {
-            double undersideNoise = Mth.clamp(detailNoise.getValue(
-                            (context.blockX() + 911.0) / 128.0,
-                            adjustedY / 96.0,
-                            (context.blockZ() - 353.0) / 128.0
-                    ), -1.0, 1.0);
-            adjustedY += undersideNoise * settings.undersideVariation();
-        }
-        double radiusScale = verticalRadiusScale(adjustedY);
-        if (radiusScale <= 0.0) {
-            return -1.0;
-        }
         for (int offsetX = -1; offsetX <= 1; offsetX++) {
             for (int offsetZ = -1; offsetZ <= 1; offsetZ++) {
                 IslandCellDescriptor cell = cellDescriptor(
@@ -94,7 +81,7 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
                 for (IslandComponent component : cell.components()) {
                     strongest = Math.max(
                             strongest,
-                            componentDensity(context, component, radiusScale)
+                            componentDensity(context, component)
                     );
                 }
             }
@@ -105,19 +92,53 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
 
     private double componentDensity(
             FunctionContext context,
-            IslandComponent component,
-            double radiusScale
+            IslandComponent component
+    ) {
+        double horizontalDensity = horizontalDensity(context, component);
+        if (context.blockY() >= settings.shoulderY() || horizontalDensity <= 0.0) {
+            return horizontalDensity;
+        }
+
+        double maximumDepth = settings.shoulderY() - settings.bottomY() - 1.0;
+        double localDepth = 8.0;
+        for (IslandKeel keel : component.keels()) {
+            double dx = context.blockX() - keel.centerX();
+            double dz = context.blockZ() - keel.centerZ();
+            double localX = dx * keel.cosRotation() + dz * keel.sinRotation();
+            double localZ = -dx * keel.sinRotation() + dz * keel.cosRotation();
+            double normalizedRadius = Math.sqrt(
+                    localX * localX / (keel.radiusX() * keel.radiusX())
+                            + localZ * localZ / (keel.radiusZ() * keel.radiusZ())
+            );
+            if (normalizedRadius < 1.0) {
+                double influence = Math.pow(1.0 - normalizedRadius, keel.exponent());
+                localDepth = Math.max(localDepth, keel.depth() * influence);
+            }
+        }
+
+        double roughness = Mth.clamp(detailNoise.getValue(
+                        (context.blockX() + 911.0) / 112.0,
+                        0.0,
+                        (context.blockZ() - 353.0) / 112.0
+                ), -1.0, 1.0)
+                * settings.undersideVariation()
+                * Math.sqrt(localDepth / maximumDepth);
+        localDepth = Mth.clamp(localDepth + roughness, 4.0, maximumDepth);
+        double localBottom = settings.shoulderY() - localDepth;
+        double verticalDensity = context.blockY() - localBottom;
+        return Math.min(horizontalDensity, verticalDensity);
+    }
+
+    private double horizontalDensity(
+            FunctionContext context,
+            IslandComponent component
     ) {
         double strongest = -Double.MAX_VALUE;
         for (IslandLobe lobe : component.lobes()) {
-            double centerX = component.centerX()
-                    + (lobe.centerX() - component.centerX()) * radiusScale;
-            double centerZ = component.centerZ()
-                    + (lobe.centerZ() - component.centerZ()) * radiusScale;
-            double radiusX = Math.max(1.0, lobe.radiusX() * radiusScale);
-            double radiusZ = Math.max(1.0, lobe.radiusZ() * radiusScale);
-            double dx = context.blockX() - centerX;
-            double dz = context.blockZ() - centerZ;
+            double radiusX = lobe.radiusX();
+            double radiusZ = lobe.radiusZ();
+            double dx = context.blockX() - lobe.centerX();
+            double dz = context.blockZ() - lobe.centerZ();
             double localX = dx * lobe.cosRotation() + dz * lobe.sinRotation();
             double localZ = -dx * lobe.sinRotation() + dz * lobe.cosRotation();
             double normalizedRadius = Math.sqrt(localX * localX / (radiusX * radiusX)
@@ -132,23 +153,10 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
             );
             double signedDistance = (1.0 - normalizedRadius)
                     * Math.min(radiusX, radiusZ)
-                    + harmonic * maximumWarp * radiusScale;
+                    + harmonic * maximumWarp;
             strongest = Math.max(strongest, signedDistance);
         }
         return strongest;
-    }
-
-    private double verticalRadiusScale(double y) {
-        if (y >= settings.shoulderY()) {
-            return 1.0;
-        }
-        if (y <= settings.bottomY()) {
-            return 0.0;
-        }
-        double progress = (y - settings.bottomY())
-                / (settings.shoulderY() - settings.bottomY());
-        double smooth = progress * progress * (3.0 - 2.0 * progress);
-        return Math.pow(smooth, 0.72);
     }
 
     private int nearestCell(int coordinate) {
@@ -320,13 +328,57 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
             ));
         }
 
+        List<IslandKeel> keels = createKeels(random, lobes, config);
+
         return new IslandComponent(
                 centerX,
                 centerZ,
                 componentAxes[0],
                 componentAxes[1],
-                List.copyOf(lobes)
+                List.copyOf(lobes),
+                keels
         );
+    }
+
+    private List<IslandKeel> createKeels(
+            SplittableRandom random,
+            List<IslandLobe> lobes,
+            ArchetypeSettings config
+    ) {
+        double maximumAllowedDepth = settings.shoulderY() - settings.bottomY() - 2.0;
+        double maximumDepth = Math.min(config.maxKeelDepth(), maximumAllowedDepth);
+        double minimumDepth = Math.min(config.minKeelDepth(), maximumDepth);
+        List<IslandKeel> keels = new ArrayList<>(lobes.size());
+
+        for (int index = 0; index < lobes.size(); index++) {
+            IslandLobe lobe = lobes.get(index);
+            double depth;
+            if (index == 0) {
+                depth = maximumDepth - random.nextDouble(0.0, 6.0);
+            } else if (index <= 2 && lobes.size() >= 4) {
+                depth = Mth.lerp(random.nextDouble(0.82, 0.99), minimumDepth, maximumDepth);
+            } else {
+                depth = random.nextDouble(
+                        minimumDepth,
+                        maximumDepth + Math.ulp(maximumDepth)
+                );
+            }
+            double radiusScale = index == 0
+                    ? random.nextDouble(0.86, 1.02)
+                    : random.nextDouble(0.72, 1.08);
+            keels.add(new IslandKeel(
+                    lobe.centerX(),
+                    lobe.centerZ(),
+                    Math.max(8.0, lobe.radiusX() * radiusScale),
+                    Math.max(8.0, lobe.radiusZ() * radiusScale),
+                    lobe.cosRotation(),
+                    lobe.sinRotation(),
+                    depth,
+                    random.nextDouble(0.50, 0.88)
+            ));
+        }
+
+        return List.copyOf(keels);
     }
 
     private static double chooseComponentAspect(
@@ -464,7 +516,8 @@ record IslandComponent(
         double centerZ,
         double radiusX,
         double radiusZ,
-        List<IslandLobe> lobes
+        List<IslandLobe> lobes,
+        List<IslandKeel> keels
 ) {
     double maxRadius() {
         return lobes.stream()
@@ -475,6 +528,18 @@ record IslandComponent(
                 .max()
                 .orElse(Math.max(radiusX, radiusZ));
     }
+}
+
+record IslandKeel(
+        double centerX,
+        double centerZ,
+        double radiusX,
+        double radiusZ,
+        double cosRotation,
+        double sinRotation,
+        double depth,
+        double exponent
+) {
 }
 
 record IslandLobe(

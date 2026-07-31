@@ -98,7 +98,8 @@ final class CompatibilityResourcesTest {
         assertEquals(4, continental.get("min_lobes").getAsInt());
         assertEquals(7, continental.get("max_lobes").getAsInt());
         assertEquals(96, settings.get("center_jitter").getAsInt());
-        assertEquals(112, settings.get("shoulder_y").getAsInt());
+        assertEquals(160, settings.get("shoulder_y").getAsInt());
+        assertEquals(214.0, continental.get("max_keel_depth").getAsDouble());
         assertEquals(-56, settings.get("bottom_y").getAsInt());
         assertEquals(304, settings.get("top_y").getAsInt());
         assertEquals(0.55, settings.getAsJsonObject("continental").get("weight").getAsDouble());

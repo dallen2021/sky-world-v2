@@ -16,7 +16,9 @@ record ArchetypeSettings(
         int minLobes,
         int maxLobes,
         double minAspect,
-        double maxAspect
+        double maxAspect,
+        double minKeelDepth,
+        double maxKeelDepth
 ) {
     static final Codec<ArchetypeSettings> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.doubleRange(0.0, 1.0).fieldOf("weight")
@@ -44,13 +46,17 @@ record ArchetypeSettings(
             Codec.doubleRange(0.4, 2.0).optionalFieldOf("min_aspect", 0.9)
                     .forGetter(ArchetypeSettings::minAspect),
             Codec.doubleRange(0.4, 2.0).optionalFieldOf("max_aspect", 1.1)
-                    .forGetter(ArchetypeSettings::maxAspect)
+                    .forGetter(ArchetypeSettings::maxAspect),
+            Codec.doubleRange(8.0, 512.0).optionalFieldOf("min_keel_depth", 80.0)
+                    .forGetter(ArchetypeSettings::minKeelDepth),
+            Codec.doubleRange(8.0, 512.0).optionalFieldOf("max_keel_depth", 168.0)
+                    .forGetter(ArchetypeSettings::maxKeelDepth)
     ).apply(instance, ArchetypeSettings::new));
 
     ArchetypeSettings {
         if (minCount > maxCount || minRadius > maxRadius || minGap > maxGap
                 || minGroupRadius > maxGroupRadius || minLobes > maxLobes
-                || minAspect > maxAspect) {
+                || minAspect > maxAspect || minKeelDepth > maxKeelDepth) {
             throw new IllegalArgumentException("Island archetype minimums must not exceed maximums");
         }
     }
@@ -112,20 +118,20 @@ record IslandEnvelopeSettings(
         return new IslandEnvelopeSettings(
                 2048,
                 96,
-                112,
+                160,
                 -56,
                 304,
                 128.0,
                 18.0,
                 64.0,
                 new ArchetypeSettings(0.55, 1, 1, 660.0, 800.0, 0.0, 0.0,
-                        660.0, 800.0, 4, 7, 0.58, 1.45),
+                        660.0, 800.0, 4, 7, 0.58, 1.45, 112.0, 214.0),
                 new ArchetypeSettings(0.20, 2, 3, 260.0, 500.0, 160.0, 420.0,
-                        750.0, 900.0, 3, 6, 0.65, 1.35),
+                        750.0, 900.0, 3, 6, 0.65, 1.35, 88.0, 204.0),
                 new ArchetypeSettings(0.20, 7, 16, 80.0, 240.0, 40.0, 160.0,
-                        550.0, 750.0, 1, 3, 0.75, 1.30),
+                        550.0, 750.0, 1, 3, 0.75, 1.30, 64.0, 176.0),
                 new ArchetypeSettings(0.05, 4, 8, 70.0, 180.0, 180.0, 420.0,
-                        700.0, 850.0, 1, 2, 0.75, 1.30)
+                        700.0, 850.0, 1, 2, 0.75, 1.30, 56.0, 152.0)
         );
     }
 

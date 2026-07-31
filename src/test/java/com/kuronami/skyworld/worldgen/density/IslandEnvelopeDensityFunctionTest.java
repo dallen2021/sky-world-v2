@@ -8,6 +8,7 @@ import net.minecraft.world.level.levelgen.DensityFunction;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -155,6 +156,89 @@ final class IslandEnvelopeDensityFunctionTest {
         assertTrue(middle > nearBottom, "the taper must continue toward the bottom tip");
         assertTrue(sample(function, x, SETTINGS.bottomY() - 1, z) < 0.0);
         assertTrue(sample(function, x, SETTINGS.topY(), z) < 0.0);
+    }
+
+    @Test
+    void taperBeginsNearThePlayableSurface() {
+        assertTrue(SETTINGS.shoulderY() >= 144,
+                "the underside taper must not leave a hundred-block cylindrical wall");
+    }
+
+    @Test
+    void continentalUndersideHasMultipleSeparatedKeels() {
+        IslandEnvelopeDensityFunction function = function(24680L);
+        IslandComponent component = function.cellDescriptor(0, 0).components().getFirst();
+        int step = 32;
+        int reach = (int)Math.ceil(component.maxRadius());
+        List<BottomSample> localMinima = new ArrayList<>();
+
+        for (int x = (int)component.centerX() - reach;
+             x <= component.centerX() + reach;
+             x += step) {
+            for (int z = (int)component.centerZ() - reach;
+                 z <= component.centerZ() + reach;
+                 z += step) {
+                int bottom = lowestPositiveY(function, x, z);
+                if (bottom >= SETTINGS.shoulderY()) {
+                    continue;
+                }
+                boolean localMinimum = true;
+                boolean strictlyLower = false;
+                for (int dx = -step; dx <= step; dx += step) {
+                    for (int dz = -step; dz <= step; dz += step) {
+                        if (dx == 0 && dz == 0) {
+                            continue;
+                        }
+                        int neighborBottom = lowestPositiveY(function, x + dx, z + dz);
+                        localMinimum &= bottom <= neighborBottom;
+                        strictlyLower |= bottom < neighborBottom;
+                    }
+                }
+                if (localMinimum && strictlyLower
+                        && bottom <= SETTINGS.bottomY() + 72) {
+                    localMinima.add(new BottomSample(x, z, bottom));
+                }
+            }
+        }
+
+        localMinima.sort((left, right) -> Integer.compare(left.y(), right.y()));
+        List<BottomSample> separated = new ArrayList<>();
+        for (BottomSample candidate : localMinima) {
+            boolean overlaps = separated.stream().anyMatch(existing ->
+                    Math.hypot(candidate.x() - existing.x(), candidate.z() - existing.z()) < 128.0);
+            if (!overlaps) {
+                separated.add(candidate);
+            }
+        }
+
+        assertTrue(separated.size() >= 3,
+                "expected at least three staggered deep keels but found " + separated);
+    }
+
+    @Test
+    void equalRadiusUndersideDepthsAreNotUniform() {
+        IslandEnvelopeDensityFunction function = function(97531L);
+        IslandComponent component = function.cellDescriptor(0, 0).components().getFirst();
+        double radius = component.maxRadius() * 0.42;
+        int shallowest = Integer.MIN_VALUE;
+        int deepest = Integer.MAX_VALUE;
+        int accepted = 0;
+
+        for (int index = 0; index < 72; index++) {
+            double angle = index * Math.PI * 2.0 / 72.0;
+            int x = (int)Math.round(component.centerX() + Math.cos(angle) * radius);
+            int z = (int)Math.round(component.centerZ() + Math.sin(angle) * radius);
+            int bottom = lowestPositiveY(function, x, z);
+            if (bottom < SETTINGS.shoulderY()) {
+                deepest = Math.min(deepest, bottom);
+                shallowest = Math.max(shallowest, bottom);
+                accepted++;
+            }
+        }
+
+        assertTrue(accepted >= 24, "the comparison ring must remain substantially inside the island");
+        assertTrue(shallowest - deepest >= 64,
+                "equal-radius underside depths are still too uniform: " + deepest + ".." + shallowest);
     }
 
     @Test
@@ -324,6 +408,22 @@ final class IslandEnvelopeDensityFunctionTest {
             }
         }
         return furthest;
+    }
+
+    private static int lowestPositiveY(
+            IslandEnvelopeDensityFunction function,
+            int x,
+            int z
+    ) {
+        for (int y = SETTINGS.bottomY() + 1; y <= SETTINGS.shoulderY(); y += 4) {
+            if (sample(function, x, y, z) > 0.0) {
+                return y;
+            }
+        }
+        return SETTINGS.shoulderY();
+    }
+
+    private record BottomSample(int x, int z, int y) {
     }
 
     private static void assertFraction(
