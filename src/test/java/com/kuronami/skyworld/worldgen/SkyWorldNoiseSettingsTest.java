@@ -50,7 +50,7 @@ final class SkyWorldNoiseSettingsTest {
     }
 
     @Test
-    void inheritsActiveOverworldClimateAndSurfaceWhileKeepingSkyGeometry() throws Exception {
+    void inheritsActiveOverworldClimateAndSurfaceWhileIntersectingShiftedTerrain() throws Exception {
         NoiseRouter activeRouter = routerStartingAt(1.0);
         NoiseRouter skyRouter = routerStartingAt(101.0);
         SurfaceRules.RuleSource activeSurface =
@@ -108,12 +108,11 @@ final class SkyWorldNoiseSettingsTest {
         assertSame(activeRouter.vegetation(), mergedRouter.vegetation());
         assertSame(activeRouter.continents(), mergedRouter.continents());
         assertSame(activeRouter.erosion(), mergedRouter.erosion());
-        assertEquals(-0.005, mergedRouter.depth().minValue());
-        assertEquals(1.0, mergedRouter.depth().maxValue());
         assertSame(activeRouter.ridges(), mergedRouter.ridges());
-        assertSame(skyRouter.initialDensityWithoutJaggedness(),
-                mergedRouter.initialDensityWithoutJaggedness());
-        assertSame(skyRouter.finalDensity(), mergedRouter.finalDensity());
+        DensityFunction.FunctionContext point =
+                new DensityFunction.SinglePointContext(0, 128, 0);
+        assertEquals(11.0, mergedRouter.initialDensityWithoutJaggedness().compute(point));
+        assertEquals(12.0, mergedRouter.finalDensity().compute(point));
         assertSame(activeRouter.veinToggle(), mergedRouter.veinToggle());
         assertSame(activeRouter.veinRidged(), mergedRouter.veinRidged());
         assertSame(activeRouter.veinGap(), mergedRouter.veinGap());
@@ -121,27 +120,56 @@ final class SkyWorldNoiseSettingsTest {
     }
 
     @Test
-    void islandBiomeDepthClampsTheSkyDensityAtAirSurfaceAndInterior() throws Exception {
-        NoiseGeneratorSettings activeOverworld = settingsStartingAt(1.0, false);
+    void activeTerrainAndIslandEnvelopeAreIntersectedForInitialAndFinalDensity() throws Exception {
         DensityFunction.FunctionContext point =
                 new DensityFunction.SinglePointContext(0, 128, 0);
 
-        NoiseGeneratorSettings air = invokeMerge(
-                activeOverworld,
-                withFinalDensity(settingsStartingAt(101.0, true), -0.25)
+        NoiseGeneratorSettings activeLimited = invokeMerge(
+                withTerrainDensities(settingsStartingAt(1.0, false), -0.20, -0.30),
+                withTerrainDensities(settingsStartingAt(101.0, true), 0.70, 0.80)
         );
-        NoiseGeneratorSettings interior = invokeMerge(
-                activeOverworld,
-                withFinalDensity(settingsStartingAt(101.0, true), 0.4)
+        NoiseGeneratorSettings envelopeLimited = invokeMerge(
+                withTerrainDensities(settingsStartingAt(1.0, false), 0.70, 0.80),
+                withTerrainDensities(settingsStartingAt(101.0, true), 0.20, 0.30)
         );
-        NoiseGeneratorSettings saturatedInterior = invokeMerge(
-                activeOverworld,
-                withFinalDensity(settingsStartingAt(101.0, true), 2.0)
+        NoiseGeneratorSettings outsideEnvelope = invokeMerge(
+                withTerrainDensities(settingsStartingAt(1.0, false), 0.70, 0.80),
+                withTerrainDensities(settingsStartingAt(101.0, true), -0.40, -0.50)
         );
 
-        assertEquals(-0.005, air.noiseRouter().depth().compute(point));
-        assertEquals(0.4, interior.noiseRouter().depth().compute(point));
-        assertEquals(1.0, saturatedInterior.noiseRouter().depth().compute(point));
+        assertEquals(-0.20,
+                activeLimited.noiseRouter().initialDensityWithoutJaggedness().compute(point));
+        assertEquals(-0.30, activeLimited.noiseRouter().finalDensity().compute(point));
+        assertEquals(0.30,
+                envelopeLimited.noiseRouter().initialDensityWithoutJaggedness().compute(point));
+        assertEquals(0.30, envelopeLimited.noiseRouter().finalDensity().compute(point));
+        assertEquals(-0.50,
+                outsideEnvelope.noiseRouter().initialDensityWithoutJaggedness().compute(point));
+        assertEquals(-0.50, outsideEnvelope.noiseRouter().finalDensity().compute(point));
+    }
+
+    @Test
+    void activeTerrainIsShiftedUpByConfiguredAmount() throws Exception {
+        DensityFunction vertical = DensityFunctions.yClampedGradient(0, 256, 0.0, 1.0);
+        NoiseGeneratorSettings active = withTerrainDensities(
+                settingsStartingAt(1.0, false),
+                vertical,
+                vertical
+        );
+        NoiseGeneratorSettings envelope = withTerrainDensities(
+                settingsStartingAt(101.0, true),
+                1.0,
+                1.0
+        );
+
+        NoiseGeneratorSettings merged = invokeMerge(active, envelope, 96);
+        DensityFunction.FunctionContext point =
+                new DensityFunction.SinglePointContext(0, 128, 0);
+
+        assertEquals(0.125,
+                merged.noiseRouter().initialDensityWithoutJaggedness().compute(point),
+                0.000_001);
+        assertEquals(0.125, merged.noiseRouter().finalDensity().compute(point), 0.000_001);
     }
 
     @Test
@@ -182,15 +210,24 @@ final class SkyWorldNoiseSettingsTest {
                 activeOverworld.noiseRouter().temperature(),
                 generator.generatorSettings().value().noiseRouter().temperature()
         );
-        assertSame(
-                skyTerrain.noiseRouter().finalDensity(),
-                generator.generatorSettings().value().noiseRouter().finalDensity()
-        );
+        assertEquals(12.0,
+                generator.generatorSettings().value().noiseRouter().finalDensity().compute(
+                        new DensityFunction.SinglePointContext(0, 128, 0)
+                ));
+        assertEquals(96, ((SkyWorldChunkGenerator)generator).surfaceShift());
     }
 
     private static NoiseGeneratorSettings invokeMerge(
             NoiseGeneratorSettings activeOverworld,
             NoiseGeneratorSettings skyTerrain
+    ) throws Exception {
+        return invokeMerge(activeOverworld, skyTerrain, 96);
+    }
+
+    private static NoiseGeneratorSettings invokeMerge(
+            NoiseGeneratorSettings activeOverworld,
+            NoiseGeneratorSettings skyTerrain,
+            int surfaceShift
     ) throws Exception {
         Class<?> merger;
         try {
@@ -205,11 +242,17 @@ final class SkyWorldNoiseSettingsTest {
         Method merge = merger.getDeclaredMethod(
                 "merge",
                 NoiseGeneratorSettings.class,
-                NoiseGeneratorSettings.class
+                NoiseGeneratorSettings.class,
+                int.class
         );
         merge.setAccessible(true);
         try {
-            return (NoiseGeneratorSettings) merge.invoke(null, activeOverworld, skyTerrain);
+            return (NoiseGeneratorSettings) merge.invoke(
+                    null,
+                    activeOverworld,
+                    skyTerrain,
+                    surfaceShift
+            );
         } catch (InvocationTargetException exception) {
             throw new AssertionError("Sky World settings merge failed", exception.getCause());
         }
@@ -264,9 +307,22 @@ final class SkyWorldNoiseSettingsTest {
         );
     }
 
-    private static NoiseGeneratorSettings withFinalDensity(
+    private static NoiseGeneratorSettings withTerrainDensities(
             NoiseGeneratorSettings settings,
+            double initialDensity,
             double finalDensity
+    ) {
+        return withTerrainDensities(
+                settings,
+                DensityFunctions.constant(initialDensity),
+                DensityFunctions.constant(finalDensity)
+        );
+    }
+
+    private static NoiseGeneratorSettings withTerrainDensities(
+            NoiseGeneratorSettings settings,
+            DensityFunction initialDensity,
+            DensityFunction finalDensity
     ) {
         NoiseRouter router = settings.noiseRouter();
         NoiseRouter replacedRouter = new NoiseRouter(
@@ -280,8 +336,8 @@ final class SkyWorldNoiseSettingsTest {
                 router.erosion(),
                 router.depth(),
                 router.ridges(),
-                router.initialDensityWithoutJaggedness(),
-                DensityFunctions.constant(finalDensity),
+                initialDensity,
+                finalDensity,
                 router.veinToggle(),
                 router.veinRidged(),
                 router.veinGap()
