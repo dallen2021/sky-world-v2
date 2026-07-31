@@ -67,7 +67,7 @@ public final class CaveBiomeDepthDensityFunction implements DensityFunction {
         return terrain;
     }
 
-    DensityFunction envelope() {
+    public DensityFunction envelope() {
         return envelope;
     }
 
