@@ -79,7 +79,7 @@ public final class CaveBiomeDepthDensityFunction implements DensityFunction {
         return vegetation;
     }
 
-    double boundaryBand() {
+    public double boundaryBand() {
         return boundaryBand;
     }
 

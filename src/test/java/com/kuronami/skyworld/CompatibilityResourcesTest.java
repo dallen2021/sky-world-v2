@@ -233,7 +233,7 @@ final class CompatibilityResourcesTest {
     }
 
     @Test
-    void integratedStrongholdProjectsItsStartToTheSkySurface() throws IOException {
+    void integratedStrongholdKeepsItsRequestedVerticalPlacement() throws IOException {
         JsonObject structure = readJson(
                 "data/integrated_stronghold/worldgen/structure/stronghold.json"
         );
@@ -255,16 +255,20 @@ final class CompatibilityResourcesTest {
                         .getAsString()
         );
         assertEquals(
-                "WORLD_SURFACE_WG",
-                structure.get("project_start_to_heightmap").getAsString()
-        );
-        assertEquals(
-                0,
+                15,
                 structure.getAsJsonObject("start_height")
                         .getAsJsonObject("min_inclusive")
                         .get("absolute")
                         .getAsInt()
         );
+        assertEquals(
+                15,
+                structure.getAsJsonObject("start_height")
+                        .getAsJsonObject("max_inclusive")
+                        .get("absolute")
+                        .getAsInt()
+        );
+        assertFalse(structure.has("project_start_to_heightmap"));
     }
 
     private static JsonObject readJson(String path) throws IOException {

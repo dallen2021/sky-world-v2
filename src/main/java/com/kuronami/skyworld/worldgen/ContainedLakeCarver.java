@@ -1,7 +1,6 @@
 package com.kuronami.skyworld.worldgen;
 
 import com.kuronami.skyworld.worldgen.density.ContainedLakePlanner;
-import com.kuronami.skyworld.worldgen.density.IslandEnvelopeDensityFunction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
@@ -25,9 +24,9 @@ final class ContainedLakeCarver {
     }
 
     static LakeRuntime createRuntime(DensityFunction finalDensity) {
-        IslandEnvelopeDensityFunction envelope =
-                ContainedLakePlanner.findEnvelope(finalDensity);
-        return envelope == null ? null : new LakeRuntime(envelope);
+        ContainedLakePlanner.TerrainShape shape =
+                ContainedLakePlanner.findShape(finalDensity);
+        return shape == null ? null : new LakeRuntime(shape);
     }
 
     static void carveChunk(
@@ -40,7 +39,7 @@ final class ContainedLakeCarver {
         ChunkPos chunkPos = chunk.getPos();
         for (ContainedLakePlanner.LakeCandidate candidate
                 : ContainedLakePlanner.candidatesIntersecting(
-                        runtime.envelope,
+                        runtime.shape,
                         chunkPos.getMinBlockX(),
                         chunkPos.getMinBlockZ(),
                         chunkPos.getMaxBlockX(),
@@ -57,7 +56,7 @@ final class ContainedLakeCarver {
                 }
                 validated = runtime.validationCache.computeIfAbsent(
                         candidate,
-                        ignored -> validate(candidate, runtime.envelope, level, randomState, generator)
+                        ignored -> validate(candidate, runtime.shape, level, randomState, generator)
                 );
             }
             validated.ifPresent(lake -> carve(lake, chunk));
@@ -66,7 +65,7 @@ final class ContainedLakeCarver {
 
     private static Optional<ValidatedLake> validate(
             ContainedLakePlanner.LakeCandidate candidate,
-            IslandEnvelopeDensityFunction envelope,
+            ContainedLakePlanner.TerrainShape shape,
             WorldGenRegion level,
             RandomState randomState,
             NoiseBasedChunkGenerator generator
@@ -83,7 +82,7 @@ final class ContainedLakeCarver {
                 || !ContainedLakePlanner.hasEnvelopeSafety(
                         candidate,
                         waterSurfaceY,
-                        envelope
+                        shape
                 )) {
             return Optional.empty();
         }
@@ -168,14 +167,14 @@ final class ContainedLakeCarver {
     }
 
     static final class LakeRuntime {
-        private final IslandEnvelopeDensityFunction envelope;
+        private final ContainedLakePlanner.TerrainShape shape;
         private final ConcurrentHashMap<
                 ContainedLakePlanner.LakeCandidate,
                 Optional<ValidatedLake>
         > validationCache = new ConcurrentHashMap<>();
 
-        private LakeRuntime(IslandEnvelopeDensityFunction envelope) {
-            this.envelope = envelope;
+        private LakeRuntime(ContainedLakePlanner.TerrainShape shape) {
+            this.shape = shape;
         }
     }
 

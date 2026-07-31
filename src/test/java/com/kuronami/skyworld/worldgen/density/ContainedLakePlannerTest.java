@@ -98,6 +98,53 @@ final class ContainedLakePlannerTest {
         assertNotNull(ContainedLakePlanner.findEnvelope(combined));
     }
 
+    @Test
+    void hybridGroupsProduceDeterministicContainedLakeCandidates() {
+        ExosphereHybridDensityFunction hybrid = hybrid(24681357L);
+        ContainedLakePlanner.TerrainShape shape = ContainedLakePlanner.findShape(
+                DensityFunctions.interpolated(hybrid)
+        );
+
+        assertNotNull(shape);
+        for (int cellX = -20; cellX <= 20; cellX++) {
+            for (int cellZ = -20; cellZ <= 20; cellZ++) {
+                List<ContainedLakePlanner.LakeCandidate> first =
+                        ContainedLakePlanner.candidatesForCell(shape, cellX, cellZ);
+                List<ContainedLakePlanner.LakeCandidate> second =
+                        ContainedLakePlanner.candidatesForCell(shape, cellX, cellZ);
+                assertEquals(first, second);
+                assertTrue(first.size() <= 3);
+                for (ContainedLakePlanner.LakeCandidate candidate : first) {
+                    assertTrue(candidate.radius() >= 12 && candidate.radius() <= 32);
+                    assertTrue(candidate.depth() >= 4 && candidate.depth() <= 12);
+                }
+            }
+        }
+    }
+
+    @Test
+    void hybridLakeSafetyRejectsCandidatesThatApproachVoid() {
+        ExosphereHybridDensityFunction hybrid = hybrid(97531864L);
+        ContainedLakePlanner.TerrainShape shape = ContainedLakePlanner.findShape(hybrid);
+        ExosphereGroupDescriptor group = hybrid.groupDescriptor(0, 0);
+        ContainedLakePlanner.LakeCandidate centered = new ContainedLakePlanner.LakeCandidate(
+                (int)Math.round(group.centerX()),
+                (int)Math.round(group.centerZ()),
+                12,
+                4
+        );
+        ContainedLakePlanner.LakeCandidate atEdge = new ContainedLakePlanner.LakeCandidate(
+                (int)Math.round(group.centerX() + group.radius()),
+                (int)Math.round(group.centerZ()),
+                32,
+                12
+        );
+
+        assertNotNull(shape);
+        assertTrue(ContainedLakePlanner.hasEnvelopeSafety(centered, 128, shape));
+        assertFalse(ContainedLakePlanner.hasEnvelopeSafety(atEdge, 128, shape));
+    }
+
     private static IslandCellDescriptor findCell(
             IslandEnvelopeDensityFunction envelope,
             IslandArchetype archetype
@@ -118,6 +165,15 @@ final class ContainedLakePlannerTest {
                 noise(seed, -7),
                 noise(seed ^ 0x9E3779B97F4A7C15L, -5),
                 IslandEnvelopeSettings.defaults()
+        );
+    }
+
+    private static ExosphereHybridDensityFunction hybrid(long seed) {
+        return new ExosphereHybridDensityFunction(
+                DensityFunctions.constant(0.0),
+                noise(seed, -7),
+                noise(seed ^ 0x9E3779B97F4A7C15L, -5),
+                ExosphereHybridSettings.defaults()
         );
     }
 

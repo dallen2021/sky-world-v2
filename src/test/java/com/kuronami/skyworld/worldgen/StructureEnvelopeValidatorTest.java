@@ -35,13 +35,25 @@ final class StructureEnvelopeValidatorTest {
     }
 
     @Test
-    void rejectsAStartWhenAnyRepresentativePieceHangsOutsideTheIsland() {
+    void retainsPartiallyExposedStartsWhenAnyRepresentativePieceHasSupport() {
         StructureEnvelopeValidator validator = new StructureEnvelopeValidator(ISLAND);
 
-        assertFalse(validator.isSupported(List.of(
+        assertTrue(validator.isSupported(List.of(
                 new BoundingBox(-24, 120, -24, 24, 160, 24),
                 new BoundingBox(160, -32, 160, 224, -12, 224)
         )));
+    }
+
+    @Test
+    void retainsPartiallySupportedPiecesWithoutChangingTheirCoordinates() {
+        StructureEnvelopeValidator validator = new StructureEnvelopeValidator(ISLAND);
+        BoundingBox partiallySupported = new BoundingBox(48, 120, -24, 96, 160, 24);
+        int originalMinY = partiallySupported.minY();
+        int originalMaxY = partiallySupported.maxY();
+
+        assertTrue(validator.isSupported(List.of(partiallySupported)));
+        assertTrue(partiallySupported.minY() == originalMinY
+                && partiallySupported.maxY() == originalMaxY);
     }
 
     @Test

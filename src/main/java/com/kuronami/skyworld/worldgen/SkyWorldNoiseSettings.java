@@ -69,7 +69,7 @@ final class SkyWorldNoiseSettings {
                 islandEnvelope,
                 skyRouter.depth(),
                 activeRouter.vegetation(),
-                24.0 / 64.0,
+                terrainMode == TerrainMode.EXOSPHERE_HYBRID ? 0.025 : 24.0 / 64.0,
                 0.45,
                 0.032,
                 0.008

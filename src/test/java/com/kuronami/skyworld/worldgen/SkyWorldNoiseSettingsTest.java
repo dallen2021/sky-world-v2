@@ -198,6 +198,10 @@ final class SkyWorldNoiseSettingsTest {
         assertEquals(0.30, merged.noiseRouter().finalDensity().compute(point));
         assertTrue(merged.noiseRouter().depth() instanceof
                 com.kuronami.skyworld.worldgen.density.CaveBiomeDepthDensityFunction);
+        com.kuronami.skyworld.worldgen.density.CaveBiomeDepthDensityFunction caveDepth =
+                (com.kuronami.skyworld.worldgen.density.CaveBiomeDepthDensityFunction)
+                        merged.noiseRouter().depth();
+        assertEquals(0.025, caveDepth.boundaryBand());
         assertSame(active.noiseRouter().temperature(), merged.noiseRouter().temperature());
         assertSame(active.surfaceRule(), merged.surfaceRule());
     }

@@ -23,11 +23,11 @@ final class StructureEnvelopeValidator {
         }
 
         for (BoundingBox box : representativeBoxes(pieceBoxes)) {
-            if (!isBoxSupported(box)) {
-                return false;
+            if (isBoxSupported(box)) {
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     private boolean isBoxSupported(BoundingBox box) {
@@ -55,7 +55,7 @@ final class StructureEnvelopeValidator {
                 supportedColumns++;
             }
         }
-        return supportedColumns >= 3;
+        return supportedColumns >= 1;
     }
 
     private boolean hasSupport(int x, int baseY, int z) {
