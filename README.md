@@ -30,17 +30,24 @@ Leaving the world type on `Default` produces normal terrain.
 
 ## Terrain and caves
 
-The Sky World generator uses an Exosphere-inspired floating-island silhouette
-with horizontally scalable End base noise. It reads the active
-`minecraft:overworld` settings at world creation and combines them with
-`sky_world:overworld`. That means:
+The Sky World generator divides the world into seed-dependent island groups
+and intersects each connected floating-island envelope with the active
+Overworld terrain. It reads the active `minecraft:overworld` settings at world
+creation and combines them with `sky_world:overworld`. That means:
 
 - Terralith's climate fields and surface rules remain active when Terralith is
   loaded.
 - OTBWG's TerraBlender regions and surface rules are applied after the merge.
-- Biome depth follows the signed island boundary: exposed surfaces receive
-  surface biomes, while lush and dripstone cave biomes are reserved for island
-  interiors.
+- Active Overworld terrain is shifted upward by 96 blocks, then clipped in
+  both initial and final density so heightmaps, structures, and terrain agree.
+- Continental groups dominate, with medium groups, close archipelagos, and
+  sparse small-island groups providing variation. Ordinary crossings target
+  roughly 200–800 blocks of true void.
+- Island bodies retain broad shoulders to Y=112, taper continuously to a hard
+  bottom at Y=-56, and stop at Y=304. Boundary noise can warp a connected body
+  but cannot create detached lower shelves.
+- Approximately 2% of exterior-boundary samples expose cave-biome depth, with
+  a strong wet-climate bias so lush caves are noticeable without dominating.
 - Cave carving and biome-specific underground decoration stay owned by the
   selected biome pack.
 - Lush vegetation and dripstone are not stamped under every island.
@@ -51,16 +58,28 @@ with horizontally scalable End base noise. It reads the active
 
 Sky World intentionally keeps its own final density, so it retains floating
 islands rather than reproducing Terralith's continental terrain shapes.
+Continental and medium groups may also receive contained lakes. Every lake
+validates its full shoreline, a 32-block safety ring, and 48 blocks of island
+depth before carving; failed checks leave terrain untouched instead of making
+waterfalls into the void. Rivers are not generated in 1.3.0.
 
 ## Customization
 
 The main tuning resources are:
 
 - `data/sky_world/worldgen/density_function/sky_islands.json`
-  - `sx` and `sz`: horizontal island size. Larger values make broader islands.
-  - the `-0.234375` density offset: island coverage. Less negative values
-    produce more land; more negative values produce more void.
-  - the two `y_clamped_gradient` ranges: bottom and top island taper.
+  - `cell_size` and `center_jitter`: macro-cell spacing and seed-dependent
+    group-center variation.
+  - `shoulder_y`, `bottom_y`, and `top_y`: the vertical profile and hard
+    island limits.
+  - `edge_warp` and `underside_variation`: boundary and underside roughness.
+  - `normalization_scale`: signed-distance scaling used by the terrain and
+    cave-boundary calculations.
+  - `continental`, `medium`, `archipelago`, and `small`: weights, component
+    counts, radii, internal gaps, and total group-radius ranges.
+- `data/sky_world/worldgen/world_preset/sky_world.json`
+  - `surface_shift`: upward shift applied to the active Overworld terrain;
+    defaults to `96` when absent so older serialized generators still decode.
 - `data/sky_world/worldgen/placed_feature/hanging_glow_lichen.json`
   - `count.min_inclusive` and `count.max_inclusive`: glow-lichen frequency.
 - `data/sky_world/worldgen/placed_feature/hanging_cave_vines.json`
@@ -69,8 +88,9 @@ The main tuning resources are:
 - `data/sky_world/tags/worldgen/biome/supports_hanging_vines.json`
   - biome groups that receive glow-berry vines.
 
-These resources can be overridden by a higher-priority datapack. Test major
-density changes in a new world.
+These resources can be overridden by a higher-priority datapack. Existing
+chunks never change, and newly generated 1.3.0 chunks will not blend cleanly
+into the old End-noise shape, so use fresh worlds for terrain validation.
 
 ## Compatibility
 
@@ -100,7 +120,7 @@ targeted structure compatibility rather than a global remap.
 .\gradlew.bat build
 ```
 
-The built mod is `build/libs/sky_world-1.2.0.jar`.
+The built mod is `build/libs/sky_world-1.3.0.jar`.
 
 ## License
 

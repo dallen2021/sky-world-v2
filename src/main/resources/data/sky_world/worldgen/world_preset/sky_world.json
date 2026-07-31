@@ -9,7 +9,8 @@
           "preset": "minecraft:overworld"
         },
         "settings": "minecraft:overworld",
-        "sky_settings": "sky_world:overworld"
+        "sky_settings": "sky_world:overworld",
+        "surface_shift": 96
       }
     },
     "minecraft:the_end": {

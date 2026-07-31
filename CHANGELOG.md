@@ -6,6 +6,35 @@ development-only and not released.
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-07-31
+
+### Continental Sky Islands v2
+- Replace scalable End base noise with deterministic, seed-dependent
+  continental, medium, archipelago, and sparse island groups.
+- Intersect shifted active Overworld terrain with a connected island envelope
+  in both initial and final density, preserving Terralith, OTBWG, structures,
+  ores, surfaces, and biome-owned carvers inside the islands.
+- Add genuine inter-group void, continuously tapered undersides, and hard
+  vertical bounds without independent lower shelves.
+- Add a bounded thread-safe cell cache and interpolate the decoded envelope.
+
+### Caves and lakes
+- Expose cave-biome depth at approximately 2% of exterior-boundary samples,
+  with wet climates receiving at least 60% of accepted samples.
+- Preserve existing Sky World glow lichen and hanging-vine decoration without
+  globally stamping lush or dripstone features onto island undersides.
+- Add deterministic lakes to continental and medium groups with complete
+  shoreline, 32-block safety-margin, and 48-block depth validation.
+
+### Compatibility and customization
+- Keep Sky World as an explicit preset and leave `Default` untouched.
+- Add optional generator field `surface_shift` with a backward-compatible
+  default of 96.
+- Publish island shape, spacing, taper, and archetype settings in
+  `sky_islands.json`; document that fresh worlds are required for testing.
+- Retain Integrated Stronghold surface projection and the structure-locate
+  compatibility behavior introduced in 1.2.0.
+
 ## [1.2.0] — 2026-07-31
 
 ### Biome-pack compatibility

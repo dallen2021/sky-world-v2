@@ -81,6 +81,7 @@ final class CompatibilityResourcesTest {
                 "sky_world:overworld",
                 overworldGenerator.get("sky_settings").getAsString()
         );
+        assertEquals(96, overworldGenerator.get("surface_shift").getAsInt());
     }
 
     @Test
