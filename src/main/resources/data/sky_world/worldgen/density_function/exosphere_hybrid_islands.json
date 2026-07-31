@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:interpolated",
+  "argument": {
+    "type": "sky_world:exosphere_hybrid",
+    "base_noise": "minecraft:end/base_3d_noise",
+    "layout_noise": "sky_world:island_layout",
+    "edge_noise": "sky_world:island_detail",
+    "settings": {
+      "horizontal_scale": 3.0,
+      "vertical_scale": 1.0,
+      "density_threshold": 0.0,
+      "cell_spacing": 2048,
+      "center_jitter": 96,
+      "min_group_radius": 700.0,
+      "max_group_radius": 850.0,
+      "group_transition": 320.0,
+      "edge_warp": 192.0,
+      "void_strength": 0.85
+    }
+  }
+}

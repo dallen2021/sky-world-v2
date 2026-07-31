@@ -13,6 +13,7 @@ public final class SkyWorldDensityFunctions {
 
     static {
         TYPES.register("island_envelope", () -> IslandEnvelopeDensityFunction.CODEC);
+        TYPES.register("exosphere_hybrid", () -> ExosphereHybridDensityFunction.CODEC);
         TYPES.register("cave_biome_depth", () -> CaveBiomeDepthDensityFunction.CODEC);
     }
 
