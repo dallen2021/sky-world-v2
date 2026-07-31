@@ -46,16 +46,38 @@ That's the whole mod. Same Isekai primitives any third-party modder gets — Sky
 ./gradlew build
 ```
 
+Gradle downloads the pinned Isekai API development dependency from Modrinth.
+
 Produces `build/libs/sky_world-1.0.0.jar`.
 
 ## Compatibility
 
-Because Sky World **overlays** `data/minecraft/worldgen/noise_settings/overworld.json`, it conflicts with any other mod that does the same (Terralith, BYG, etc.). It coexists with:
+Sky World loads its overworld shape after optional worldgen packs and exposes
+the same density through a Lithostitched modifier. Confirmed combinations:
+
+- Terralith 2.5.8 + Lithostitched 1.6.5 — Terralith biomes/features remain,
+  while Sky World's floating-island density controls the terrain shape.
+- Integrated Stronghold 1.1.4 + Integrated API 1.7.4 — the stronghold start is
+  projected onto the sky terrain surface and `/locate structure
+  integrated_stronghold:stronghold` no longer searches forever at Y=15.
+
+Other mods that replace `minecraft:overworld` noise settings may still need an
+explicit compatibility entry. Sky World also coexists with:
 
 - Bridge mods (YUNG's Bridges)
 - Airship / flight mods (Create: Aeronautics, Iron Jetpacks)
 - View-distance mods (Distant Horizons)
 - Most QoL mods (JEI, Sodium, Iris, etc.)
+
+### World-shape customization
+
+The shared island density is
+`data/sky_world/worldgen/density_function/sky_islands.json`. Its active Y
+range, edge gradient, and horizontal/vertical island scale feed both the
+ordinary overworld override and the Lithostitched compatibility path, so they
+cannot drift apart.
+
+Worldgen changes require a new world or unexplored chunks.
 
 ## License
 

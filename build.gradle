@@ -59,19 +59,28 @@ configurations {
 }
 
 repositories {
-    // Isekai API: local jar consumer pattern (relative path to sibling mod dir).
-    // For runClient/runtime, see runs.client.additionalRuntimeMods (TODO v0.2).
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
 }
 
 dependencies {
     // Isekai API consumer dependency. compileOnly for the API surface;
-    // localRuntime drops the jar into the dev runtime so runClient/runServer load it
-    // as a regular NeoForge mod (it has its own neoforge.mods.toml).
-    compileOnly files("../mod-029-isekai-api/build/libs/isekai_api-${isekai_api_version}.jar")
-    localRuntime files("../mod-029-isekai-api/build/libs/isekai_api-${isekai_api_version}.jar")
+    // localRuntime loads the published mod in runClient/runServer.
+    compileOnly "maven.modrinth:isekai-api:${isekai_api_version}"
+    localRuntime "maven.modrinth:isekai-api:${isekai_api_version}"
 
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'com.google.code.gson:gson:2.10.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -80,10 +89,12 @@ tasks.named('test', Test) {
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    filteringCharset = 'UTF-8'
     var replaceProperties = [
             minecraft_version      : minecraft_version,
             minecraft_version_range: minecraft_version_range,
             neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
             loader_version_range   : loader_version_range,
             mod_id                 : mod_id,
             mod_name               : mod_name,

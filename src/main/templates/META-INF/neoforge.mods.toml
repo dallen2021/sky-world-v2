@@ -18,7 +18,7 @@ ${mod_description}
 [[dependencies.${mod_id}]]
     modId="neoforge"
     type="required"
-    versionRange="[${neo_version},)"
+    versionRange="${neo_version_range}"
     ordering="NONE"
     side="BOTH"
 
@@ -34,4 +34,25 @@ ${mod_description}
     type="required"
     versionRange="[1.0.0,)"
     ordering="BEFORE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="terralith"
+    type="optional"
+    versionRange="[0,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="lithostitched"
+    type="optional"
+    versionRange="[0,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="integrated_stronghold"
+    type="optional"
+    versionRange="[0,)"
+    ordering="AFTER"
     side="BOTH"

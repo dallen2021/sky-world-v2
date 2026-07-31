@@ -1,0 +1,7 @@
+{
+  "type": "lithostitched:wrap_noise_router",
+  "priority": 1000,
+  "dimension": "minecraft:overworld",
+  "target": "final_density",
+  "wrapper_function": "sky_world:sky_islands"
+}

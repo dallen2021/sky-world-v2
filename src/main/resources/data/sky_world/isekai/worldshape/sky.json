@@ -53,6 +53,9 @@
     },
     "minecraft:ancient_city": {
       "type": "isekai:never"
+    },
+    "integrated_stronghold:stronghold": {
+      "type": "isekai:always"
     }
   },
   "applies_to": [

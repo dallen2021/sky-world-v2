@@ -4,6 +4,24 @@ All notable changes to Sky World follow this file. Format roughly follows
 [Keep a Changelog](https://keepachangelog.com/); versions before 1.0.0 were
 development-only and not released.
 
+## [Unreleased]
+
+### Compatibility
+- Load Sky World after optional Terralith and Lithostitched data packs, and
+  reassert the shared sky-island density through Lithostitched's noise-router
+  modifier.
+- Project Integrated Stronghold starts onto the generated world surface and
+  exempt their pre-projection marker from Isekai's normal structure predicate,
+  preventing `/locate` from scanning indefinitely.
+- Move the island density into the reusable
+  `sky_world:sky_islands` density-function resource for one-place tuning.
+
+### Build
+- Resolve the pinned Isekai API development dependency from Modrinth.
+- Generate UTF-8 mod metadata so the description's em dash is valid TOML.
+- Use NeoForge 21.1.244 for development while retaining 21.1.227 as the
+  published minimum.
+
 ## [1.0.0] — 2026-05-28
 
 First public release. Datapack-only Aether-style floating-island overworld
