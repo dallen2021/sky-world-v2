@@ -173,6 +173,58 @@ final class SkyWorldNoiseSettingsTest {
     }
 
     @Test
+    void hybridModeUsesTheExosphereDensityForBothHeightmapsAndTerrain() throws Exception {
+        NoiseGeneratorSettings active = withTerrainDensities(
+                settingsStartingAt(1.0, false),
+                0.70,
+                0.80
+        );
+        NoiseGeneratorSettings hybrid = withTerrainDensities(
+                settingsStartingAt(101.0, true),
+                0.20,
+                0.30
+        );
+        NoiseGeneratorSettings merged = SkyWorldNoiseSettings.merge(
+                active,
+                hybrid,
+                256,
+                TerrainMode.EXOSPHERE_HYBRID
+        );
+        DensityFunction.FunctionContext point =
+                new DensityFunction.SinglePointContext(0, 128, 0);
+
+        assertEquals(0.30,
+                merged.noiseRouter().initialDensityWithoutJaggedness().compute(point));
+        assertEquals(0.30, merged.noiseRouter().finalDensity().compute(point));
+        assertTrue(merged.noiseRouter().depth() instanceof
+                com.kuronami.skyworld.worldgen.density.CaveBiomeDepthDensityFunction);
+        assertSame(active.noiseRouter().temperature(), merged.noiseRouter().temperature());
+        assertSame(active.surfaceRule(), merged.surfaceRule());
+    }
+
+    @Test
+    void explicitHybridGeneratorKeepsItsModeAndIgnoresSurfaceShift() {
+        NoiseGeneratorSettings active = settingsStartingAt(1.0, false);
+        NoiseGeneratorSettings hybrid = withTerrainDensities(
+                settingsStartingAt(101.0, true),
+                0.20,
+                0.30
+        );
+        SkyWorldChunkGenerator generator = new SkyWorldChunkGenerator(
+                emptyBiomeSource(),
+                Holder.direct(active),
+                Holder.direct(hybrid),
+                144,
+                TerrainMode.EXOSPHERE_HYBRID
+        );
+
+        assertEquals(TerrainMode.EXOSPHERE_HYBRID, generator.terrainMode());
+        assertEquals(144, generator.surfaceShift());
+        assertEquals(0.30, generator.generatorSettings().value().noiseRouter()
+                .finalDensity().compute(new DensityFunction.SinglePointContext(0, 128, 0)));
+    }
+
+    @Test
     void compatibilityGeneratorKeepsItsSkyWorldIdentityAfterMergingSettings() throws Exception {
         NoiseGeneratorSettings activeOverworld = settingsStartingAt(1.0, false);
         NoiseGeneratorSettings skyTerrain = settingsStartingAt(101.0, true);

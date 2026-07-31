@@ -50,6 +50,11 @@ public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
                     Registries.NOISE_SETTINGS,
                     ResourceLocation.fromNamespaceAndPath(SkyWorld.MODID, "overworld")
             );
+    private static final ResourceKey<NoiseGeneratorSettings> EXOSPHERE_HYBRID_SETTINGS =
+            ResourceKey.create(
+                    Registries.NOISE_SETTINGS,
+                    ResourceLocation.fromNamespaceAndPath(SkyWorld.MODID, "exosphere_hybrid")
+            );
 
     public static final MapCodec<SkyWorldChunkGenerator> CODEC =
             RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -60,12 +65,18 @@ public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
                     NoiseGeneratorSettings.CODEC.fieldOf("sky_settings")
                             .forGetter(generator -> generator.skyTerrainSettings),
                     Codec.INT.optionalFieldOf("surface_shift", DEFAULT_SURFACE_SHIFT)
-                            .forGetter(generator -> generator.surfaceShift)
+                            .forGetter(generator -> generator.surfaceShift),
+                    TerrainMode.CODEC.optionalFieldOf(
+                                    "terrain_mode",
+                                    TerrainMode.CONTINENTAL_ENVELOPE
+                            )
+                            .forGetter(generator -> generator.terrainMode)
             ).apply(instance, instance.stable(SkyWorldChunkGenerator::new)));
 
     private final Holder<NoiseGeneratorSettings> activeOverworldSettings;
     private final Holder<NoiseGeneratorSettings> skyTerrainSettings;
     private final int surfaceShift;
+    private final TerrainMode terrainMode;
     private final Map<RandomState, ContainedLakeCarver.LakeRuntime> lakeRuntimes =
             Collections.synchronizedMap(new WeakHashMap<>());
     private final Map<RandomState, StructureEnvelopeValidator> structureValidators =
@@ -80,7 +91,8 @@ public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
                 biomeSource,
                 activeOverworldSettings,
                 skyTerrainSettings,
-                DEFAULT_SURFACE_SHIFT
+                DEFAULT_SURFACE_SHIFT,
+                TerrainMode.CONTINENTAL_ENVELOPE
         );
     }
 
@@ -90,21 +102,43 @@ public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
             Holder<NoiseGeneratorSettings> skyTerrainSettings,
             int surfaceShift
     ) {
+        this(
+                biomeSource,
+                activeOverworldSettings,
+                skyTerrainSettings,
+                surfaceShift,
+                TerrainMode.CONTINENTAL_ENVELOPE
+        );
+    }
+
+    SkyWorldChunkGenerator(
+            BiomeSource biomeSource,
+            Holder<NoiseGeneratorSettings> activeOverworldSettings,
+            Holder<NoiseGeneratorSettings> skyTerrainSettings,
+            int surfaceShift,
+            TerrainMode terrainMode
+    ) {
         super(
                 biomeSource,
                 Holder.direct(SkyWorldNoiseSettings.merge(
                         activeOverworldSettings.value(),
                         skyTerrainSettings.value(),
-                        surfaceShift
+                        surfaceShift,
+                        terrainMode
                 ))
         );
         this.activeOverworldSettings = activeOverworldSettings;
         this.skyTerrainSettings = skyTerrainSettings;
         this.surfaceShift = surfaceShift;
+        this.terrainMode = terrainMode;
     }
 
     int surfaceShift() {
         return surfaceShift;
+    }
+
+    TerrainMode terrainMode() {
+        return terrainMode;
     }
 
     @Override
@@ -322,6 +356,8 @@ public final class SkyWorldChunkGenerator extends NoiseBasedChunkGenerator {
 
     @Override
     public boolean stable(ResourceKey<NoiseGeneratorSettings> settings) {
-        return settings == SKY_WORLD_SETTINGS || super.stable(settings);
+        return settings == SKY_WORLD_SETTINGS
+                || settings == EXOSPHERE_HYBRID_SETTINGS
+                || super.stable(settings);
     }
 }

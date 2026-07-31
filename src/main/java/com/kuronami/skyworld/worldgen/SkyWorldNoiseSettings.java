@@ -16,33 +16,54 @@ final class SkyWorldNoiseSettings {
             NoiseGeneratorSettings skyTerrain,
             int surfaceShift
     ) {
+        return merge(
+                activeOverworld,
+                skyTerrain,
+                surfaceShift,
+                TerrainMode.CONTINENTAL_ENVELOPE
+        );
+    }
+
+    static NoiseGeneratorSettings merge(
+            NoiseGeneratorSettings activeOverworld,
+            NoiseGeneratorSettings skyTerrain,
+            int surfaceShift,
+            TerrainMode terrainMode
+    ) {
         NoiseRouter activeRouter = activeOverworld.noiseRouter();
         NoiseRouter skyRouter = skyTerrain.noiseRouter();
         DensityFunction islandEnvelope = skyRouter.finalDensity();
-        DensityFunction shiftedInitialDensity = DensityFunctions.interpolated(
-                new TranslateDF(
-                        activeRouter.initialDensityWithoutJaggedness(),
-                        0.0,
-                        surfaceShift,
-                        0.0
-                )
-        );
-        DensityFunction shiftedFinalDensity = DensityFunctions.interpolated(
-                new TranslateDF(
-                        activeRouter.finalDensity(),
-                        0.0,
-                        surfaceShift,
-                        0.0
-                )
-        );
-        DensityFunction combinedInitialDensity = DensityFunctions.min(
-                shiftedInitialDensity,
-                islandEnvelope
-        );
-        DensityFunction combinedFinalDensity = DensityFunctions.min(
-                shiftedFinalDensity,
-                islandEnvelope
-        );
+        DensityFunction combinedInitialDensity;
+        DensityFunction combinedFinalDensity;
+        if (terrainMode == TerrainMode.EXOSPHERE_HYBRID) {
+            combinedInitialDensity = islandEnvelope;
+            combinedFinalDensity = islandEnvelope;
+        } else {
+            DensityFunction shiftedInitialDensity = DensityFunctions.interpolated(
+                    new TranslateDF(
+                            activeRouter.initialDensityWithoutJaggedness(),
+                            0.0,
+                            surfaceShift,
+                            0.0
+                    )
+            );
+            DensityFunction shiftedFinalDensity = DensityFunctions.interpolated(
+                    new TranslateDF(
+                            activeRouter.finalDensity(),
+                            0.0,
+                            surfaceShift,
+                            0.0
+                    )
+            );
+            combinedInitialDensity = DensityFunctions.min(
+                    shiftedInitialDensity,
+                    islandEnvelope
+            );
+            combinedFinalDensity = DensityFunctions.min(
+                    shiftedFinalDensity,
+                    islandEnvelope
+            );
+        }
         DensityFunction biomeDepth = new CaveBiomeDepthDensityFunction(
                 combinedFinalDensity,
                 islandEnvelope,

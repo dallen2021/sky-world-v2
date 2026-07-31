@@ -85,6 +85,50 @@ final class CompatibilityResourcesTest {
     }
 
     @Test
+    void exosphereHybridIsASeparateExplicitPreset() throws IOException {
+        JsonObject preset = readJson(
+                "data/sky_world/worldgen/world_preset/exosphere_hybrid.json"
+        );
+        JsonObject generator = preset.getAsJsonObject("dimensions")
+                .getAsJsonObject("minecraft:overworld")
+                .getAsJsonObject("generator");
+        JsonObject normalPresets = JsonParser.parseString(Files.readString(
+                projectPath(
+                        "src/main/resources/data/minecraft/tags/worldgen/world_preset/normal.json"
+                ),
+                StandardCharsets.UTF_8
+        )).getAsJsonObject();
+
+        assertEquals("sky_world:noise", generator.get("type").getAsString());
+        assertEquals("minecraft:overworld", generator.get("settings").getAsString());
+        assertEquals("sky_world:exosphere_hybrid",
+                generator.get("sky_settings").getAsString());
+        assertEquals("exosphere_hybrid", generator.get("terrain_mode").getAsString());
+        assertFalse(generator.has("surface_shift"));
+        assertTrue(normalPresets.getAsJsonArray("values").asList().stream()
+                .map(JsonElement::getAsString)
+                .anyMatch("sky_world:exosphere_hybrid"::equals));
+    }
+
+    @Test
+    void hybridNoiseSettingsUseOneShapeForPreliminaryAndFinalDensity()
+            throws IOException {
+        JsonObject settings = readJson(
+                "data/sky_world/worldgen/noise_settings/exosphere_hybrid.json"
+        );
+        JsonObject router = settings.getAsJsonObject("noise_router");
+
+        assertEquals("sky_world:exosphere_hybrid_islands",
+                router.get("initial_density_without_jaggedness").getAsString());
+        assertEquals("sky_world:exosphere_hybrid_islands",
+                router.get("final_density").getAsString());
+        assertEquals("minecraft:air",
+                settings.getAsJsonObject("default_fluid").get("Name").getAsString());
+        assertEquals(-64, settings.get("sea_level").getAsInt());
+        assertFalse(settings.get("aquifers_enabled").getAsBoolean());
+    }
+
+    @Test
     void islandDensityUsesConfigurableContinentalEnvelope() throws IOException {
         JsonObject density = readJson(
                 "data/sky_world/worldgen/density_function/sky_islands.json"

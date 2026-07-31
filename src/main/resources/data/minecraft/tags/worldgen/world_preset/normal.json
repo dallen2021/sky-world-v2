@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "sky_world:sky_world"
+    "sky_world:sky_world",
+    "sky_world:exosphere_hybrid"
   ]
 }
