@@ -1,89 +1,96 @@
 # Sky World
 
-> The overworld becomes a sea of Aether II-style continental floating islands.
-> Below the islands is the void. Vanilla ores, structures, and mobs are remapped onto the islands via [Isekai API](https://github.com/KURONAMI333/isekai-api).
+Sky World adds a selectable NeoForge 1.21.1 world preset made of large
+floating islands over the void. It keeps the normal `Default` preset intact
+and uses the active Overworld biome source, so Terralith biomes and
+biome-owned cave features can populate the islands.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![NeoForge 1.21.1](https://img.shields.io/badge/NeoForge-1.21.1-orange.svg)](https://neoforged.net)
 [![Depends on Isekai API](https://img.shields.io/badge/Depends-Isekai%20API-9333ea)](https://github.com/KURONAMI333/isekai-api)
 
----
+## Creating a world
 
-## Concept
+1. Install Sky World and Isekai API.
+2. Select **Sky World** in the World Type control when creating a world.
+3. Create a new world. Worldgen changes only affect newly generated chunks.
 
-Every chunk of the overworld is rewritten as thick floating islands separated by open void. Villages, ravines, strongholds, and ore veins all relocate into the island volume — you mine *through* the island instead of *down* to bedrock.
+On a dedicated server, use:
 
-Pairs naturally with bridge mods (YUNG's Bridges), airship mods (Create: Aeronautics), and view-distance mods (Distant Horizons).
-
-## How it works
-
-Sky World ships **only datapack JSON** — no custom blocks, no custom mobs, no Mixins of its own. The whole world transformation is expressed in three files:
-
-1. **`data/minecraft/worldgen/noise_settings/overworld.json`** — overlay that wraps vanilla's `final_density` in Isekai's `mask_y_range`, forcing solid terrain into the Y=120..220 band and leaving void elsewhere.
-2. **`data/sky_world/neoforge/biome_modifier/apply_sky.json`** — a NeoForge biome modifier of type `isekai_api:apply_worldshape` that:
-   - Remaps every ore feature's Y range into the island band (via Isekai's `Linear` `RemapStrategy`)
-   - Excludes all overworld carvers — no caves inside the islands
-   - Filters which biomes the modification applies to (most surface land biomes)
-3. **`data/sky_world/neoforge/structure_modifier/apply_sky.json`** — a structure modifier that strips ocean / ancient-city structures (which can't fit the sky-only worldshape) by clearing their biome filter.
-
-That's the whole mod. Same Isekai primitives any third-party modder gets — Sky World is just one application.
-
-## How to play
-
-1. Install [Isekai API](https://github.com/KURONAMI333/isekai-api) and Sky World together.
-2. Create a new world (existing worlds keep their old terrain in already-generated chunks).
-3. You spawn at the surface (~Y=180 on a floating island). Below ~Y=120 is void; falling off the edge of your island = death.
-4. Mine through the island for ores. Bridge or fly to nearby islands.
-
-## Dependencies
-
-- NeoForge 1.21.1
-- [Isekai API 1.0.0+](https://github.com/KURONAMI333/isekai-api) (required, loaded automatically)
-
-## Building from source
-
-```bash
-./gradlew build
+```properties
+level-type=sky_world\:sky_world
 ```
 
-Gradle downloads the pinned Isekai API development dependency from Modrinth.
+Leaving the world type on `Default` produces normal terrain.
 
-Produces `build/libs/sky_world-1.0.0.jar`.
+## Terrain and caves
+
+`sky_world:overworld` uses an Exosphere-inspired floating-island silhouette
+with horizontally scalable End base noise. It deliberately does not replace
+biome JSON, cave carvers, or the global `minecraft:overworld` noise settings.
+That means:
+
+- Terralith's Overworld biome source remains active when Terralith is loaded.
+- Cave carving and biome-specific underground decoration stay owned by the
+  selected biome pack.
+- Lush vegetation and dripstone are not stamped under every island.
+- Glow lichen is added throughout Sky World, while hanging glow-berry vines
+  are limited to lush, wet, jungle, and swamp biome groups.
+- The extra lighting and vines are generator-gated and never run in a
+  `Default` world.
+
+Terralith biomes and features are retained. Sky World currently owns the
+noise-settings surface-rule tree, so this is not a byte-for-byte reproduction
+of every Terralith terrain shape or surface-rule detail.
+
+## Customization
+
+The main tuning resources are:
+
+- `data/sky_world/worldgen/density_function/sky_islands.json`
+  - `sx` and `sz`: horizontal island size. Larger values make broader islands.
+  - the `-0.234375` density offset: island coverage. Less negative values
+    produce more land; more negative values produce more void.
+  - the two `y_clamped_gradient` ranges: bottom and top island taper.
+- `data/sky_world/worldgen/placed_feature/hanging_glow_lichen.json`
+  - `count.min_inclusive` and `count.max_inclusive`: glow-lichen frequency.
+- `data/sky_world/worldgen/placed_feature/hanging_cave_vines.json`
+  - count range and `environment_scan.max_steps`: hanging-vine frequency and
+    maximum search distance below an island ceiling.
+- `data/sky_world/tags/worldgen/biome/supports_hanging_vines.json`
+  - biome groups that receive glow-berry vines.
+
+These resources can be overridden by a higher-priority datapack. Test major
+density changes in a new world.
 
 ## Compatibility
 
-Sky World loads its overworld shape after optional worldgen packs and exposes
-the same density through a Lithostitched modifier. Confirmed combinations:
+The compatibility test stack currently covers:
 
-- Terralith 2.5.8 + Lithostitched 1.6.5 — Terralith biomes/features remain,
-  while Sky World's floating-island density controls the terrain shape.
-- Integrated Stronghold 1.1.4 + Integrated API 1.7.4 — the stronghold start is
-  projected onto the sky terrain surface and `/locate structure
-  integrated_stronghold:stronghold` no longer searches forever at Y=15.
+- Terralith 2.6.2
+- Lithostitched 1.7.13
+- Integrated Villages 1.3.3
+- Integrated Stronghold 1.1.4
+- Integrated Dungeons and Structures 1.13.7
+- Sky Villages 1.0.6
 
-Other mods that replace `minecraft:overworld` noise settings may still need an
-explicit compatibility entry. Sky World also coexists with:
+Sky World no longer installs a dimension-wide Isekai structure predicate.
+This avoids the unbounded structure-surface search that previously caused
+`/locate` to stall for Integrated structures. The Integrated Stronghold
+resource still projects its start to `WORLD_SURFACE_WG`.
 
-- Bridge mods (YUNG's Bridges)
-- Airship / flight mods (Create: Aeronautics, Iron Jetpacks)
-- View-distance mods (Distant Horizons)
-- Most QoL mods (JEI, Sodium, Iris, etc.)
+Structure placement can still look wrong when another mod hard-codes an
+absolute Y coordinate or assumes a continuous ground plane. Those cases need
+targeted structure compatibility rather than a global remap.
 
-### World-shape customization
+## Building
 
-The shared island density is
-`data/sky_world/worldgen/density_function/sky_islands.json`. Its active Y
-range, edge gradient, and horizontal/vertical island scale feed both the
-ordinary overworld override and the Lithostitched compatibility path, so they
-cannot drift apart.
+```powershell
+.\gradlew.bat build
+```
 
-Worldgen changes require a new world or unexplored chunks.
+The built mod is `build/libs/sky_world-1.1.0.jar`.
 
 ## License
 
-[MIT License](LICENSE) — modpack inclusion welcome, no credit required.
-
-## Credits
-
-- Author: KURONAMI
-- Built on [Isekai API](https://github.com/KURONAMI333/isekai-api)
+[MIT License](LICENSE)

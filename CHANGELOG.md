@@ -6,21 +6,31 @@ development-only and not released.
 
 ## [Unreleased]
 
-### Compatibility
-- Load Sky World after optional Terralith and Lithostitched data packs, and
-  reassert the shared sky-island density through Lithostitched's noise-router
-  modifier.
-- Project Integrated Stronghold starts onto the generated world surface and
-  exempt their pre-projection marker from Isekai's normal structure predicate,
-  preventing `/locate` from scanning indefinitely.
-- Move the island density into the reusable
-  `sky_world:sky_islands` density-function resource for one-place tuning.
+## [1.1.0] — 2026-07-30
 
-### Build
-- Resolve the pinned Isekai API development dependency from Modrinth.
-- Generate UTF-8 mod metadata so the description's em dash is valid TOML.
-- Use NeoForge 21.1.244 for development while retaining 21.1.227 as the
-  published minimum.
+### World preset
+- Add the selectable `Sky World` preset (`sky_world:sky_world`).
+- Stop overriding `minecraft:overworld`; the `Default` preset now keeps normal
+  terrain.
+- Add a namespaced `sky_world:overworld` noise setting and scalable,
+  Exosphere-inspired island density.
+
+### Terrain and decoration
+- Use the active `minecraft:overworld` multi-noise biome source so Terralith
+  biomes and biome features can populate the islands.
+- Keep native cave carvers and biome-owned underground decoration.
+- Add moderate glow lichen to Sky World only.
+- Add hanging glow-berry vines only to lush, wet, jungle, and swamp biome
+  groups.
+- Add a generator-aware placement modifier so these decorations are no-ops in
+  normal Overworlds.
+
+### Compatibility
+- Remove the global Isekai worldshape, biome modifier, structure modifier, and
+  dimension-wide Lithostitched density wrapper.
+- Retain the targeted Integrated Stronghold surface projection.
+- Validate fresh Sky World and Default worlds with Terralith, Lithostitched,
+  Integrated Villages, Integrated Stronghold, IDAS, and Sky Villages.
 
 ## [1.0.0] — 2026-05-28
 

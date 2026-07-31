@@ -1,18 +1,54 @@
 {
-  "type": "isekai_api:squeeze",
+  "type": "minecraft:squeeze",
   "argument": {
-    "type": "minecraft:interpolated",
-    "argument": {
-      "type": "minecraft:blend_density",
+    "type": "minecraft:mul",
+    "argument1": 0.64,
+    "argument2": {
+      "type": "minecraft:interpolated",
       "argument": {
-        "type": "isekai_api:band_density",
-        "active_min_y": 50,
-        "active_max_y": 200,
-        "gradient_width": 30,
-        "noise": {
-          "type": "isekai_api:blended_noise",
-          "size_xz": 320,
-          "size_y": 240
+        "type": "minecraft:blend_density",
+        "argument": {
+          "type": "minecraft:add",
+          "argument1": -0.234375,
+          "argument2": {
+            "type": "minecraft:mul",
+            "argument1": {
+              "type": "minecraft:y_clamped_gradient",
+              "from_y": -64,
+              "to_y": -16,
+              "from_value": 0.0,
+              "to_value": 0.8
+            },
+            "argument2": {
+              "type": "minecraft:add",
+              "argument1": 0.234375,
+              "argument2": {
+                "type": "minecraft:add",
+                "argument1": -23.4375,
+                "argument2": {
+                  "type": "minecraft:mul",
+                  "argument1": {
+                    "type": "minecraft:y_clamped_gradient",
+                    "from_y": 128,
+                    "to_y": 255,
+                    "from_value": 1.0,
+                    "to_value": 0.87
+                  },
+                  "argument2": {
+                    "type": "minecraft:add",
+                    "argument1": 23.4375,
+                    "argument2": {
+                      "type": "isekai_api:scale_coord",
+                      "f": "minecraft:end/base_3d_noise",
+                      "sx": 1.5,
+                      "sy": 1.0,
+                      "sz": 1.5
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
