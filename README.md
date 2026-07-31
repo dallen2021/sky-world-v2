@@ -41,11 +41,14 @@ creation and combines them with `sky_world:overworld`. That means:
 - Active Overworld terrain is shifted upward by 96 blocks, then clipped in
   both initial and final density so heightmaps, structures, and terrain agree.
 - Continental groups dominate, with medium groups, close archipelagos, and
-  sparse small-island groups providing variation. Ordinary crossings target
+  sparse small-island groups providing variation. Spawn continents are
+  typically about 1,050–1,500 blocks across, while ordinary crossings target
   roughly 200–800 blocks of true void.
-- Island bodies retain broad shoulders to Y=112, taper continuously to a hard
-  bottom at Y=-56, and stop at Y=304. Boundary noise can warp a connected body
-  but cannot create detached lower shelves.
+- Continents use connected, rotated lobes and harmonic coastline warping
+  instead of one circular ellipse. Their underside taper begins at Y=160 and
+  follows several staggered keel fields down toward the hard bottom at Y=-56;
+  this produces offset inverted peaks without detached lower shelves. The
+  hard top remains Y=304.
 - Approximately 2% of exterior-boundary samples expose cave-biome depth, with
   a strong wet-climate bias so lush caves are noticeable without dominating.
 - Cave carving and biome-specific underground decoration stay owned by the
@@ -61,7 +64,7 @@ islands rather than reproducing Terralith's continental terrain shapes.
 Continental and medium groups may also receive contained lakes. Every lake
 validates its full shoreline, a 32-block safety ring, and 48 blocks of island
 depth before carving; failed checks leave terrain untouched instead of making
-waterfalls into the void. Rivers are not generated in 1.3.0.
+waterfalls into the void. Rivers are not generated in 1.4.0.
 
 ## Customization
 
@@ -70,13 +73,17 @@ The main tuning resources are:
 - `data/sky_world/worldgen/density_function/sky_islands.json`
   - `cell_size` and `center_jitter`: macro-cell spacing and seed-dependent
     group-center variation.
-  - `shoulder_y`, `bottom_y`, and `top_y`: the vertical profile and hard
-    island limits.
+  - `shoulder_y`, `bottom_y`, and `top_y`: where underside tapering begins and
+    the hard island limits.
   - `edge_warp` and `underside_variation`: boundary and underside roughness.
   - `normalization_scale`: signed-distance scaling used by the terrain and
     cave-boundary calculations.
   - `continental`, `medium`, `archipelago`, and `small`: weights, component
     counts, radii, internal gaps, and total group-radius ranges.
+  - Each archetype's `min_lobes` / `max_lobes` and `min_aspect` / `max_aspect`:
+    connected footprint complexity and elongation.
+  - Each archetype's `min_keel_depth` / `max_keel_depth`: the range of
+    staggered underside peak depths.
 - `data/sky_world/worldgen/world_preset/sky_world.json`
   - `surface_shift`: upward shift applied to the active Overworld terrain;
     defaults to `96` when absent so older serialized generators still decode.
@@ -89,7 +96,7 @@ The main tuning resources are:
   - biome groups that receive glow-berry vines.
 
 These resources can be overridden by a higher-priority datapack. Existing
-chunks never change, and newly generated 1.3.0 chunks will not blend cleanly
+chunks never change, and newly generated 1.4.0 chunks will not blend cleanly
 into the old End-noise shape, so use fresh worlds for terrain validation.
 
 ## Compatibility
@@ -110,9 +117,12 @@ This avoids the unbounded structure-surface search that previously caused
 `/locate` to stall for Integrated structures. The Integrated Stronghold
 resource still projects its start to `WORLD_SURFACE_WG`.
 
-Structure placement can still look wrong when another mod hard-codes an
-absolute Y coordinate or assumes a continuous ground plane. Those cases need
-targeted structure compatibility rather than a global remap.
+Sky World 1.4.0 additionally validates a bounded sample of every generated
+structure start against the island envelope. A start with representative
+pieces hanging in the void is rejected before pieces and terrain-adjustment
+blobs generate. The validator has a hard density-sample budget and never uses
+an unbounded surface search. Mods that intentionally place free-floating sky
+structures may need a future opt-out tag.
 
 ## Building
 
@@ -120,7 +130,7 @@ targeted structure compatibility rather than a global remap.
 .\gradlew.bat build
 ```
 
-The built mod is `build/libs/sky_world-1.3.0.jar`.
+The built mod is `build/libs/sky_world-1.4.0.jar`.
 
 ## License
 

@@ -6,6 +6,26 @@ development-only and not released.
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-07-31
+
+### Island silhouette revision
+- Reduce common continental footprints to roughly 1,100–1,600 blocks across,
+  with spawn continents constrained to the smaller end of that range.
+- Replace each circular ellipse with a deterministic union of connected,
+  rotated lobes and stronger harmonic coastline variation.
+- Move the underside shoulder from Y=112 to Y=160 and replace uniform radial
+  shrinking with several staggered keel fields per component, producing
+  offset inverted peaks and shallower edge shelves without detached terrain.
+- Add public per-archetype lobe-count, aspect-ratio, and keel-depth controls to
+  `sky_islands.json`; older overrides decode with compatible defaults.
+
+### Structure safety
+- Validate structure-piece bases against the mapped island envelope before a
+  start is installed in the chunk, rejecting mineshafts, villages, and modded
+  starts whose representative pieces would hang in the void.
+- Keep validation bounded to at most 1,080 density samples even for extremely
+  large modded starts, and preserve weighted-set fallback to another entry.
+
 ## [1.3.0] — 2026-07-31
 
 ### Continental Sky Islands v2
