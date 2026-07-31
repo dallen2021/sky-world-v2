@@ -2,6 +2,7 @@ package com.kuronami.skyworld;
 
 import com.kuronami.isekaiapi.api.Isekai;
 import com.kuronami.skyworld.worldgen.SkyWorldChunkGenerators;
+import com.kuronami.skyworld.worldgen.density.SkyWorldDensityFunctions;
 import com.kuronami.skyworld.worldgen.placement.SkyWorldPlacementModifiers;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
@@ -16,6 +17,7 @@ public final class SkyWorld {
 
     public SkyWorld(IEventBus modBus) {
         LOGGER.info("Sky World v{} loading", VERSION);
+        SkyWorldDensityFunctions.register(modBus);
         SkyWorldChunkGenerators.register(modBus);
         SkyWorldPlacementModifiers.register(modBus);
         // Smoke-test the Isekai API facade is reachable at compile time.

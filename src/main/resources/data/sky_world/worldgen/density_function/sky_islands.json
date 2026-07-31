@@ -1,55 +1,61 @@
 {
-  "type": "minecraft:squeeze",
+  "type": "minecraft:interpolated",
   "argument": {
-    "type": "minecraft:mul",
-    "argument1": 0.64,
-    "argument2": {
-      "type": "minecraft:interpolated",
-      "argument": {
-        "type": "minecraft:blend_density",
-        "argument": {
-          "type": "minecraft:add",
-          "argument1": -0.234375,
-          "argument2": {
-            "type": "minecraft:mul",
-            "argument1": {
-              "type": "minecraft:y_clamped_gradient",
-              "from_y": -64,
-              "to_y": -16,
-              "from_value": 0.0,
-              "to_value": 0.8
-            },
-            "argument2": {
-              "type": "minecraft:add",
-              "argument1": 0.234375,
-              "argument2": {
-                "type": "minecraft:add",
-                "argument1": -23.4375,
-                "argument2": {
-                  "type": "minecraft:mul",
-                  "argument1": {
-                    "type": "minecraft:y_clamped_gradient",
-                    "from_y": 128,
-                    "to_y": 255,
-                    "from_value": 1.0,
-                    "to_value": 0.87
-                  },
-                  "argument2": {
-                    "type": "minecraft:add",
-                    "argument1": 23.4375,
-                    "argument2": {
-                      "type": "isekai_api:scale_coord",
-                      "f": "minecraft:end/base_3d_noise",
-                      "sx": 1.5,
-                      "sy": 1.0,
-                      "sz": 1.5
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+    "type": "sky_world:island_envelope",
+    "layout_noise": "sky_world:island_layout",
+    "detail_noise": "sky_world:island_detail",
+    "settings": {
+      "cell_size": 2560,
+      "center_jitter": 64,
+      "shoulder_y": 112,
+      "bottom_y": -56,
+      "top_y": 304,
+      "edge_warp": 96.0,
+      "underside_variation": 18.0,
+      "normalization_scale": 64.0,
+      "continental": {
+        "weight": 0.55,
+        "min_count": 1,
+        "max_count": 1,
+        "min_radius": 900.0,
+        "max_radius": 1100.0,
+        "min_gap": 0.0,
+        "max_gap": 0.0,
+        "min_group_radius": 900.0,
+        "max_group_radius": 1100.0
+      },
+      "medium": {
+        "weight": 0.2,
+        "min_count": 2,
+        "max_count": 3,
+        "min_radius": 350.0,
+        "max_radius": 650.0,
+        "min_gap": 200.0,
+        "max_gap": 500.0,
+        "min_group_radius": 900.0,
+        "max_group_radius": 1100.0
+      },
+      "archipelago": {
+        "weight": 0.2,
+        "min_count": 7,
+        "max_count": 16,
+        "min_radius": 90.0,
+        "max_radius": 320.0,
+        "min_gap": 40.0,
+        "max_gap": 180.0,
+        "min_group_radius": 900.0,
+        "max_group_radius": 1100.0
+      },
+      "small": {
+        "weight": 0.05,
+        "min_count": 4,
+        "max_count": 8,
+        "min_radius": 80.0,
+        "max_radius": 220.0,
+        "min_gap": 200.0,
+        "max_gap": 500.0,
+        "min_group_radius": 900.0,
+        "max_group_radius": 1100.0
       }
     }
   }

@@ -84,17 +84,24 @@ final class CompatibilityResourcesTest {
     }
 
     @Test
-    void islandDensityUsesScalableEndNoise() throws IOException {
+    void islandDensityUsesConfigurableContinentalEnvelope() throws IOException {
         JsonObject density = readJson(
                 "data/sky_world/worldgen/density_function/sky_islands.json"
         );
-        JsonObject coordinateScale = findObjectWithType(density, "isekai_api:scale_coord");
+        JsonObject envelope = findObjectWithType(density, "sky_world:island_envelope");
 
-        assertNotNull(coordinateScale, "Island density must expose horizontal coordinate scaling");
-        assertEquals("minecraft:end/base_3d_noise", coordinateScale.get("f").getAsString());
-        assertTrue(coordinateScale.get("sx").getAsDouble() > 1.0);
-        assertEquals(1.0, coordinateScale.get("sy").getAsDouble());
-        assertTrue(coordinateScale.get("sz").getAsDouble() > 1.0);
+        assertNotNull(envelope, "Island density must use the continental envelope codec");
+        JsonObject settings = envelope.getAsJsonObject("settings");
+        assertEquals(2560, settings.get("cell_size").getAsInt());
+        assertEquals(64, settings.get("center_jitter").getAsInt());
+        assertEquals(112, settings.get("shoulder_y").getAsInt());
+        assertEquals(-56, settings.get("bottom_y").getAsInt());
+        assertEquals(304, settings.get("top_y").getAsInt());
+        assertEquals(0.55, settings.getAsJsonObject("continental").get("weight").getAsDouble());
+        assertEquals(0.20, settings.getAsJsonObject("medium").get("weight").getAsDouble());
+        assertEquals(0.20, settings.getAsJsonObject("archipelago").get("weight").getAsDouble());
+        assertEquals(0.05, settings.getAsJsonObject("small").get("weight").getAsDouble());
+        assertFalse(density.toString().contains("minecraft:end/base_3d_noise"));
     }
 
     @Test
