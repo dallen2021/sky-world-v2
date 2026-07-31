@@ -3,12 +3,13 @@
     "minecraft:overworld": {
       "type": "minecraft:overworld",
       "generator": {
-        "type": "minecraft:noise",
+        "type": "sky_world:noise",
         "biome_source": {
           "type": "minecraft:multi_noise",
           "preset": "minecraft:overworld"
         },
-        "settings": "sky_world:overworld"
+        "settings": "minecraft:overworld",
+        "sky_settings": "sky_world:overworld"
       }
     },
     "minecraft:the_end": {

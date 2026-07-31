@@ -2,8 +2,9 @@
 
 Sky World adds a selectable NeoForge 1.21.1 world preset made of large
 floating islands over the void. It keeps the normal `Default` preset intact
-and uses the active Overworld biome source, so Terralith biomes and
-biome-owned cave features can populate the islands.
+and merges the active Overworld climate and surface rules into the island
+generator, so Terralith, OTBWG, and biome-owned cave features can populate the
+islands in the appropriate places.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![NeoForge 1.21.1](https://img.shields.io/badge/NeoForge-1.21.1-orange.svg)](https://neoforged.net)
@@ -15,6 +16,10 @@ biome-owned cave features can populate the islands.
 2. Select **Sky World** in the World Type control when creating a world.
 3. Create a new world. Worldgen changes only affect newly generated chunks.
 
+Create a new Sky World after upgrading from 1.1.0. Worlds first created with
+1.1.0 serialized Minecraft's normal noise-generator type and do not
+automatically switch to the new compatibility generator.
+
 On a dedicated server, use:
 
 ```properties
@@ -25,12 +30,17 @@ Leaving the world type on `Default` produces normal terrain.
 
 ## Terrain and caves
 
-`sky_world:overworld` uses an Exosphere-inspired floating-island silhouette
-with horizontally scalable End base noise. It deliberately does not replace
-biome JSON, cave carvers, or the global `minecraft:overworld` noise settings.
-That means:
+The Sky World generator uses an Exosphere-inspired floating-island silhouette
+with horizontally scalable End base noise. It reads the active
+`minecraft:overworld` settings at world creation and combines them with
+`sky_world:overworld`. That means:
 
-- Terralith's Overworld biome source remains active when Terralith is loaded.
+- Terralith's climate fields and surface rules remain active when Terralith is
+  loaded.
+- OTBWG's TerraBlender regions and surface rules are applied after the merge.
+- Biome depth follows the signed island boundary: exposed surfaces receive
+  surface biomes, while lush and dripstone cave biomes are reserved for island
+  interiors.
 - Cave carving and biome-specific underground decoration stay owned by the
   selected biome pack.
 - Lush vegetation and dripstone are not stamped under every island.
@@ -39,9 +49,8 @@ That means:
 - The extra lighting and vines are generator-gated and never run in a
   `Default` world.
 
-Terralith biomes and features are retained. Sky World currently owns the
-noise-settings surface-rule tree, so this is not a byte-for-byte reproduction
-of every Terralith terrain shape or surface-rule detail.
+Sky World intentionally keeps its own final density, so it retains floating
+islands rather than reproducing Terralith's continental terrain shapes.
 
 ## Customization
 
@@ -68,6 +77,8 @@ density changes in a new world.
 The compatibility test stack currently covers:
 
 - Terralith 2.6.2
+- Oh The Biomes We've Gone 2.6.0
+- TerraBlender 4.1.0.8
 - Lithostitched 1.7.13
 - Integrated Villages 1.3.3
 - Integrated Stronghold 1.1.4
@@ -89,7 +100,7 @@ targeted structure compatibility rather than a global remap.
 .\gradlew.bat build
 ```
 
-The built mod is `build/libs/sky_world-1.1.0.jar`.
+The built mod is `build/libs/sky_world-1.2.0.jar`.
 
 ## License
 

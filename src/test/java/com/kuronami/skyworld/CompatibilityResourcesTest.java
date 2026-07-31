@@ -22,7 +22,7 @@ final class CompatibilityResourcesTest {
     @Test
     void loadsAfterOptionalCompatibilityTargets() throws IOException {
         String metadataTemplate = Files.readString(
-                Path.of("src/main/templates/META-INF/neoforge.mods.toml"),
+                projectPath("src/main/templates/META-INF/neoforge.mods.toml"),
                 StandardCharsets.UTF_8
         );
 
@@ -37,16 +37,18 @@ final class CompatibilityResourcesTest {
         JsonObject preset = readJson(
                 "data/sky_world/worldgen/world_preset/sky_world.json"
         );
-        JsonObject normalPresets = readJson(
-                "data/minecraft/tags/worldgen/world_preset/normal.json"
-        );
+        JsonObject normalPresets = JsonParser.parseString(Files.readString(
+                projectPath(
+                        "src/main/resources/data/minecraft/tags/worldgen/world_preset/normal.json"
+                ),
+                StandardCharsets.UTF_8
+        )).getAsJsonObject();
 
         JsonObject overworldGenerator = preset
                 .getAsJsonObject("dimensions")
                 .getAsJsonObject("minecraft:overworld")
                 .getAsJsonObject("generator");
-        assertEquals("minecraft:noise", overworldGenerator.get("type").getAsString());
-        assertEquals("sky_world:overworld", overworldGenerator.get("settings").getAsString());
+        assertEquals("sky_world:noise", overworldGenerator.get("type").getAsString());
         assertEquals(
                 "minecraft:overworld",
                 overworldGenerator.getAsJsonObject("biome_source").get("preset").getAsString()
@@ -61,6 +63,27 @@ final class CompatibilityResourcesTest {
     }
 
     @Test
+    void skyWorldPresetMergesTheActiveOverworldSettingsWithSkyTerrain() throws IOException {
+        JsonObject preset = readJson(
+                "data/sky_world/worldgen/world_preset/sky_world.json"
+        );
+        JsonObject overworldGenerator = preset
+                .getAsJsonObject("dimensions")
+                .getAsJsonObject("minecraft:overworld")
+                .getAsJsonObject("generator");
+
+        assertEquals("sky_world:noise", overworldGenerator.get("type").getAsString());
+        assertEquals(
+                "minecraft:overworld",
+                overworldGenerator.get("settings").getAsString()
+        );
+        assertEquals(
+                "sky_world:overworld",
+                overworldGenerator.get("sky_settings").getAsString()
+        );
+    }
+
+    @Test
     void islandDensityUsesScalableEndNoise() throws IOException {
         JsonObject density = readJson(
                 "data/sky_world/worldgen/density_function/sky_islands.json"
@@ -72,6 +95,22 @@ final class CompatibilityResourcesTest {
         assertTrue(coordinateScale.get("sx").getAsDouble() > 1.0);
         assertEquals(1.0, coordinateScale.get("sy").getAsDouble());
         assertTrue(coordinateScale.get("sz").getAsDouble() > 1.0);
+    }
+
+    @Test
+    void biomeDepthIsBuiltFromDecodedIslandDensityInsteadOfAnInvalidJsonReference()
+            throws IOException {
+        JsonObject settings = readJson(
+                "data/sky_world/worldgen/noise_settings/overworld.json"
+        );
+
+        assertFalse(resourceExists(
+                "data/sky_world/worldgen/density_function/island_biome_depth.json"
+        ));
+        assertEquals(
+                "minecraft:overworld/depth",
+                settings.getAsJsonObject("noise_router").get("depth").getAsString()
+        );
     }
 
     @Test
@@ -160,7 +199,13 @@ final class CompatibilityResourcesTest {
     }
 
     private static boolean resourceExists(String path) {
-        return CompatibilityResourcesTest.class.getClassLoader().getResource(path) != null;
+        return Files.isRegularFile(projectPath("src/main/resources/" + path));
+    }
+
+    private static Path projectPath(String relativePath) {
+        String projectDirectory = System.getProperty("skyWorld.projectDir");
+        assertNotNull(projectDirectory, "Missing Sky World project directory");
+        return Path.of(projectDirectory).resolve(relativePath);
     }
 
     private static JsonObject findObjectWithType(JsonElement element, String type) {

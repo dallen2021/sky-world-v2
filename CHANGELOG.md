@@ -6,6 +6,27 @@ development-only and not released.
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-07-31
+
+### Biome-pack compatibility
+- Add a Sky World chunk-generator codec that merges the active
+  `minecraft:overworld` settings with Sky World's floating-island terrain.
+- Inherit Terralith's or another biome pack's climate fields, surface rules,
+  spawn targets, stone type, and ore-noise settings without replacing the
+  island density, air fluid, sea level, or aquifer behavior.
+- Derive the biome-source depth signal from the signed island density so
+  surface biomes remain on exposed island faces while cave biomes are selected
+  inside sufficiently thick islands.
+- Preserve TerraBlender's OTBWG region and surface-rule injection because the
+  compatibility generator remains a `NoiseBasedChunkGenerator`.
+
+### Validation
+- Add NeoForge-loaded JUnit coverage for generator registration, settings
+  merging, Sky World identity, and island-relative cave depth.
+- Validate a fresh AetherCraft-profile world with Terralith, OTBWG,
+  TerraBlender, Lithostitched, Integrated Stronghold, Integrated Villages, and
+  IDAS.
+
 ## [1.1.0] — 2026-07-30
 
 ### World preset
