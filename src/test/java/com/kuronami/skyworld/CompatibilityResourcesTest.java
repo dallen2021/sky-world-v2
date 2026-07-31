@@ -105,19 +105,20 @@ final class CompatibilityResourcesTest {
     }
 
     @Test
-    void biomeDepthIsBuiltFromDecodedIslandDensityInsteadOfAnInvalidJsonReference()
+    void caveExposureUsesItsOwnSeededSelectorNoise()
             throws IOException {
         JsonObject settings = readJson(
                 "data/sky_world/worldgen/noise_settings/overworld.json"
         );
 
-        assertFalse(resourceExists(
-                "data/sky_world/worldgen/density_function/island_biome_depth.json"
-        ));
+        JsonObject depth = settings.getAsJsonObject("noise_router")
+                .getAsJsonObject("depth");
         assertEquals(
-                "minecraft:overworld/depth",
-                settings.getAsJsonObject("noise_router").get("depth").getAsString()
+                "minecraft:noise",
+                depth.get("type").getAsString()
         );
+        assertEquals("sky_world:cave_exposure", depth.get("noise").getAsString());
+        assertTrue(resourceExists("data/sky_world/worldgen/noise/cave_exposure.json"));
     }
 
     @Test

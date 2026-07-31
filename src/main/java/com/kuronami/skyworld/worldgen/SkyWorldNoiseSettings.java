@@ -1,6 +1,7 @@
 package com.kuronami.skyworld.worldgen;
 
 import com.kuronami.isekaiapi.densityfunction.TranslateDF;
+import com.kuronami.skyworld.worldgen.density.CaveBiomeDepthDensityFunction;
 import net.minecraft.world.level.levelgen.DensityFunction;
 import net.minecraft.world.level.levelgen.DensityFunctions;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
@@ -38,6 +39,16 @@ final class SkyWorldNoiseSettings {
                 shiftedFinalDensity,
                 islandEnvelope
         );
+        DensityFunction biomeDepth = new CaveBiomeDepthDensityFunction(
+                combinedFinalDensity,
+                islandEnvelope,
+                skyRouter.depth(),
+                activeRouter.vegetation(),
+                24.0 / 64.0,
+                0.45,
+                0.032,
+                0.008
+        );
         NoiseRouter mergedRouter = new NoiseRouter(
                 activeRouter.barrierNoise(),
                 activeRouter.fluidLevelFloodednessNoise(),
@@ -47,7 +58,7 @@ final class SkyWorldNoiseSettings {
                 activeRouter.vegetation(),
                 activeRouter.continents(),
                 activeRouter.erosion(),
-                combinedFinalDensity.clamp(-0.005, 1.0),
+                biomeDepth,
                 activeRouter.ridges(),
                 combinedInitialDensity,
                 combinedFinalDensity,

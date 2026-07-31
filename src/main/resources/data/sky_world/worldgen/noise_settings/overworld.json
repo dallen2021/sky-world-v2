@@ -22,7 +22,12 @@
       "y_scale": 0.5
     },
     "continents": "minecraft:overworld/continents",
-    "depth": "minecraft:overworld/depth",
+    "depth": {
+      "type": "minecraft:noise",
+      "noise": "sky_world:cave_exposure",
+      "xz_scale": 0.015625,
+      "y_scale": 0.015625
+    },
     "erosion": "minecraft:overworld/erosion",
     "final_density": "sky_world:sky_islands",
     "fluid_level_floodedness": {
