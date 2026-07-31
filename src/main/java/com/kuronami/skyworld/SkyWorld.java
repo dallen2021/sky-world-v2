@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 @Mod(SkyWorld.MODID)
 public final class SkyWorld {
     public static final String MODID = "sky_world";
-    public static final String VERSION = "1.2.0";
+    public static final String VERSION = "1.3.0";
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public SkyWorld(IEventBus modBus) {

@@ -52,6 +52,18 @@ final class IslandEnvelopeDensityFunctionTest {
     }
 
     @Test
+    void originCellAlwaysProvidesAContinentalSpawnIsland() {
+        for (long seed = 0; seed < 100; seed++) {
+            IslandEnvelopeDensityFunction function = function(seed);
+            assertEquals(
+                    IslandArchetype.CONTINENTAL,
+                    function.cellDescriptor(0, 0).archetype()
+            );
+            assertTrue(sample(function, 0, SETTINGS.shoulderY(), 0) > 0.0);
+        }
+    }
+
+    @Test
     void archetypeDistributionMatchesContinentalDefaults() {
         IslandEnvelopeDensityFunction function = function(44332211L);
         Map<IslandArchetype, Integer> counts = new EnumMap<>(IslandArchetype.class);
@@ -77,9 +89,9 @@ final class IslandEnvelopeDensityFunctionTest {
         int x = (int)Math.round(component.centerX());
         int z = (int)Math.round(component.centerZ());
 
-        double shoulder = sample(function, x, SETTINGS.shoulderY(), z);
-        double middle = sample(function, x, 24, z);
-        double nearBottom = sample(function, x, SETTINGS.bottomY() + 1, z);
+        int shoulder = positiveExtent(function, x, SETTINGS.shoulderY(), z);
+        int middle = positiveExtent(function, x, 24, z);
+        int nearBottom = positiveExtent(function, x, SETTINGS.bottomY() + 1, z);
 
         assertTrue(shoulder > middle, "the island radius must shrink below the shoulder");
         assertTrue(middle > nearBottom, "the taper must continue toward the bottom tip");
@@ -94,7 +106,7 @@ final class IslandEnvelopeDensityFunctionTest {
         double largestJump = 0.0;
 
         for (int border = -3; border <= 3; border++) {
-            int borderX = border * cellSize;
+            int borderX = border * cellSize + cellSize / 2;
             for (int z = -cellSize * 2; z <= cellSize * 2; z += 16) {
                 double left = sample(function, borderX - 1, SETTINGS.shoulderY(), z);
                 double right = sample(function, borderX + 1, SETTINGS.shoulderY(), z);
@@ -224,6 +236,19 @@ final class IslandEnvelopeDensityFunctionTest {
             int z
     ) {
         return function.compute(new DensityFunction.SinglePointContext(x, y, z));
+    }
+
+    private static int positiveExtent(
+            IslandEnvelopeDensityFunction function,
+            int centerX,
+            int y,
+            int z
+    ) {
+        int extent = 0;
+        while (extent <= 1600 && sample(function, centerX + extent, y, z) > 0.0) {
+            extent += 4;
+        }
+        return extent;
     }
 
     private static void assertFraction(

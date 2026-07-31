@@ -19,17 +19,21 @@ final class SkyWorldNoiseSettings {
         NoiseRouter activeRouter = activeOverworld.noiseRouter();
         NoiseRouter skyRouter = skyTerrain.noiseRouter();
         DensityFunction islandEnvelope = skyRouter.finalDensity();
-        DensityFunction shiftedInitialDensity = new TranslateDF(
-                activeRouter.initialDensityWithoutJaggedness(),
-                0.0,
-                surfaceShift,
-                0.0
+        DensityFunction shiftedInitialDensity = DensityFunctions.interpolated(
+                new TranslateDF(
+                        activeRouter.initialDensityWithoutJaggedness(),
+                        0.0,
+                        surfaceShift,
+                        0.0
+                )
         );
-        DensityFunction shiftedFinalDensity = new TranslateDF(
-                activeRouter.finalDensity(),
-                0.0,
-                surfaceShift,
-                0.0
+        DensityFunction shiftedFinalDensity = DensityFunctions.interpolated(
+                new TranslateDF(
+                        activeRouter.finalDensity(),
+                        0.0,
+                        surfaceShift,
+                        0.0
+                )
         );
         DensityFunction combinedInitialDensity = DensityFunctions.min(
                 shiftedInitialDensity,

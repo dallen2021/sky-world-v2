@@ -64,9 +64,27 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
             return -1.0;
         }
 
-        int baseCellX = Math.floorDiv(context.blockX(), settings.cellSize());
-        int baseCellZ = Math.floorDiv(context.blockZ(), settings.cellSize());
+        int baseCellX = nearestCell(context.blockX());
+        int baseCellZ = nearestCell(context.blockZ());
         double strongest = -Double.MAX_VALUE;
+        double adjustedY = context.blockY();
+        if (adjustedY < settings.shoulderY()) {
+            double undersideNoise = Mth.clamp(detailNoise.getValue(
+                            (context.blockX() + 911.0) / 128.0,
+                            adjustedY / 96.0,
+                            (context.blockZ() - 353.0) / 128.0
+                    ), -1.0, 1.0);
+            adjustedY += undersideNoise * settings.undersideVariation();
+        }
+        double radiusScale = verticalRadiusScale(adjustedY);
+        if (radiusScale <= 0.0) {
+            return -1.0;
+        }
+        double boundaryWarp = Mth.clamp(detailNoise.getValue(
+                        context.blockX() / 384.0,
+                        0.0,
+                        context.blockZ() / 384.0
+                ), -1.0, 1.0) * settings.edgeWarp();
 
         for (int offsetX = -1; offsetX <= 1; offsetX++) {
             for (int offsetZ = -1; offsetZ <= 1; offsetZ++) {
@@ -74,8 +92,16 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
                         baseCellX + offsetX,
                         baseCellZ + offsetZ
                 );
+                double maximumReach = cell.boundRadius() + settings.edgeWarp();
+                if (Math.abs(context.blockX() - cell.centerX()) > maximumReach
+                        || Math.abs(context.blockZ() - cell.centerZ()) > maximumReach) {
+                    continue;
+                }
                 for (IslandComponent component : cell.components()) {
-                    strongest = Math.max(strongest, componentDensity(context, component));
+                    strongest = Math.max(
+                            strongest,
+                            componentDensity(context, component, radiusScale, boundaryWarp)
+                    );
                 }
             }
         }
@@ -83,22 +109,12 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
         return Mth.clamp(strongest / settings.normalizationScale(), -1.0, 1.0);
     }
 
-    private double componentDensity(FunctionContext context, IslandComponent component) {
-        double adjustedY = context.blockY();
-        if (adjustedY < settings.shoulderY()) {
-            double undersideNoise = detailNoise.getValue(
-                    (context.blockX() + 911.0) / 128.0,
-                    adjustedY / 96.0,
-                    (context.blockZ() - 353.0) / 128.0
-            );
-            adjustedY += undersideNoise * settings.undersideVariation();
-        }
-
-        double radiusScale = verticalRadiusScale(adjustedY);
-        if (radiusScale <= 0.0) {
-            return -settings.normalizationScale();
-        }
-
+    private double componentDensity(
+            FunctionContext context,
+            IslandComponent component,
+            double radiusScale,
+            double boundaryWarp
+    ) {
         double radiusX = Math.max(1.0, component.radiusX() * radiusScale);
         double radiusZ = Math.max(1.0, component.radiusZ() * radiusScale);
         double dx = context.blockX() - component.centerX();
@@ -106,11 +122,6 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
         double normalizedRadius = Math.sqrt(dx * dx / (radiusX * radiusX)
                 + dz * dz / (radiusZ * radiusZ));
         double signedDistance = (1.0 - normalizedRadius) * Math.min(radiusX, radiusZ);
-        double boundaryWarp = detailNoise.getValue(
-                context.blockX() / 384.0,
-                0.0,
-                context.blockZ() / 384.0
-        ) * settings.edgeWarp();
         return signedDistance + boundaryWarp;
     }
 
@@ -125,6 +136,10 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
                 / (settings.shoulderY() - settings.bottomY());
         double smooth = progress * progress * (3.0 - 2.0 * progress);
         return Math.pow(smooth, 0.72);
+    }
+
+    private int nearestCell(int coordinate) {
+        return Math.floorDiv(coordinate + settings.cellSize() / 2, settings.cellSize());
     }
 
     IslandCellDescriptor cellDescriptor(int cellX, int cellZ) {
@@ -149,8 +164,8 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
 
     private IslandCellDescriptor createCellDescriptor(int cellX, int cellZ) {
         int cellSize = settings.cellSize();
-        double sampleX = (cellX + 0.5) * cellSize;
-        double sampleZ = (cellZ + 0.5) * cellSize;
+        double sampleX = (double)cellX * cellSize;
+        double sampleZ = (double)cellZ * cellSize;
         double noiseValue = layoutNoise.getValue(sampleX / 2048.0, 0.0, sampleZ / 2048.0);
         long entropy = mix64(Double.doubleToLongBits(noiseValue)
                 ^ (cellX * CELL_X_SALT)
@@ -165,7 +180,9 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
                 -settings.centerJitter(),
                 settings.centerJitter() + Math.ulp((double)settings.centerJitter())
         );
-        IslandArchetype archetype = selectArchetype(random.nextDouble());
+        IslandArchetype archetype = cellX == 0 && cellZ == 0
+                ? IslandArchetype.CONTINENTAL
+                : selectArchetype(random.nextDouble());
         ArchetypeSettings archetypeSettings = settings.settingsFor(archetype);
         List<IslandComponent> components = createComponents(
                 random,
@@ -174,7 +191,22 @@ public final class IslandEnvelopeDensityFunction implements DensityFunction {
                 centerX,
                 centerZ
         );
-        return new IslandCellDescriptor(cellX, cellZ, archetype, centerX, centerZ, components);
+        double boundRadius = components.stream()
+                .mapToDouble(component -> Math.hypot(
+                        component.centerX() - centerX,
+                        component.centerZ() - centerZ
+                ) + component.maxRadius())
+                .max()
+                .orElse(0.0);
+        return new IslandCellDescriptor(
+                cellX,
+                cellZ,
+                archetype,
+                centerX,
+                centerZ,
+                components,
+                boundRadius
+        );
     }
 
     private List<IslandComponent> createComponents(
@@ -322,6 +354,7 @@ record IslandCellDescriptor(
         IslandArchetype archetype,
         double centerX,
         double centerZ,
-        List<IslandComponent> components
+        List<IslandComponent> components,
+        double boundRadius
 ) {
 }
