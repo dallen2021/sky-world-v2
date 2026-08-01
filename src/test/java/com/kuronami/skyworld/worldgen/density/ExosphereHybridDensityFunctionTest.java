@@ -101,6 +101,23 @@ final class ExosphereHybridDensityFunctionTest {
     }
 
     @Test
+    void groupInteriorKeepsTheOriginalExosphereVerticalVariation() {
+        ExosphereHybridDensityFunction function = function(778899L);
+
+        for (int cellX = -5; cellX <= 5; cellX++) {
+            for (int cellZ = -5; cellZ <= 5; cellZ++) {
+                ExosphereGroupDescriptor group = function.groupDescriptor(cellX, cellZ);
+                double bias = function.groupBias(
+                        (int)Math.round(group.centerX()),
+                        (int)Math.round(group.centerZ())
+                );
+                assertTrue(bias > 0.0, "interior bias=" + bias);
+                assertTrue(bias <= 0.02, "interior bias=" + bias);
+            }
+        }
+    }
+
+    @Test
     void descriptorCacheIsBounded() {
         ExosphereHybridDensityFunction function = function(443322L);
 
@@ -156,12 +173,16 @@ final class ExosphereHybridDensityFunctionTest {
         for (long seed = 0; seed < samples; seed++) {
             ExosphereHybridDensityFunction function = function(seed);
             ExosphereGroupDescriptor group = function.groupDescriptor(0, 0);
+            double coreThreshold = function.groupBias(
+                    (int)Math.round(group.centerX()),
+                    (int)Math.round(group.centerZ())
+            ) * 0.65;
             int[] radii = new int[48];
             int minimum = Integer.MAX_VALUE;
             int maximum = Integer.MIN_VALUE;
             for (int index = 0; index < radii.length; index++) {
                 double angle = index * Math.PI * 2.0 / radii.length;
-                radii[index] = radialExtent(function, group, angle);
+                radii[index] = radialExtent(function, group, angle, coreThreshold);
                 minimum = Math.min(minimum, radii[index]);
                 maximum = Math.max(maximum, radii[index]);
             }
@@ -214,7 +235,8 @@ final class ExosphereHybridDensityFunctionTest {
     private static int radialExtent(
             ExosphereHybridDensityFunction function,
             ExosphereGroupDescriptor group,
-            double angle
+            double angle,
+            double coreThreshold
     ) {
         int furthest = 0;
         int maximum = (int)Math.ceil(
@@ -223,7 +245,7 @@ final class ExosphereHybridDensityFunctionTest {
         for (int radius = 0; radius <= maximum; radius += 4) {
             int x = (int)Math.round(group.centerX() + Math.cos(angle) * radius);
             int z = (int)Math.round(group.centerZ() + Math.sin(angle) * radius);
-            if (function.groupBias(x, z) > 0.062475) {
+            if (function.groupBias(x, z) > coreThreshold) {
                 furthest = radius;
             }
         }

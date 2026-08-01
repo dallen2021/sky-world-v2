@@ -124,7 +124,7 @@ final class ContainedLakePlannerTest {
 
     @Test
     void hybridLakeSafetyRejectsCandidatesThatApproachVoid() {
-        ExosphereHybridDensityFunction hybrid = hybrid(97531864L);
+        ExosphereHybridDensityFunction hybrid = hybrid(97531864L, 0.06);
         ContainedLakePlanner.TerrainShape shape = ContainedLakePlanner.findShape(hybrid);
         ExosphereGroupDescriptor group = hybrid.groupDescriptor(0, 0);
         ContainedLakePlanner.LakeCandidate centered = new ContainedLakePlanner.LakeCandidate(
@@ -169,8 +169,12 @@ final class ContainedLakePlannerTest {
     }
 
     private static ExosphereHybridDensityFunction hybrid(long seed) {
+        return hybrid(seed, 0.0);
+    }
+
+    private static ExosphereHybridDensityFunction hybrid(long seed, double baseDensity) {
         return new ExosphereHybridDensityFunction(
-                DensityFunctions.constant(0.0),
+                DensityFunctions.constant(baseDensity),
                 noise(seed, -7),
                 noise(seed ^ 0x9E3779B97F4A7C15L, -5),
                 ExosphereHybridSettings.defaults()

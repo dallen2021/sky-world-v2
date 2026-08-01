@@ -28,7 +28,7 @@ public final class ExosphereHybridDensityFunction implements DensityFunction {
             KeyDispatchDataCodec.of(CODEC);
     private static final long CELL_X_SALT = 0x9E3779B97F4A7C15L;
     private static final long CELL_Z_SALT = 0xD1B54A32D192ED03L;
-    private static final double INSIDE_STRENGTH_FACTOR = 0.115;
+    private static final double INSIDE_STRENGTH_FACTOR = 0.02;
 
     private final DensityFunction baseNoise;
     private final DensityFunction.NoiseHolder layoutNoise;
