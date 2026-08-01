@@ -6,6 +6,37 @@ development-only and not released.
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-07-31
+
+### Exosphere Hybrid preset
+- Add the separate selectable `Sky World – Exosphere Hybrid` preset while
+  leaving `Sky World`, existing serialized worlds, and `Default` unchanged.
+- Reproduce Exosphere's lower Y=-64..-16 density gradient, Y=128..255 high
+  attenuation, base density constants, scale, and squeeze around
+  `minecraft:end/base_3d_noise` without depending on Exosphere at runtime.
+- Enlarge the natural three-dimensional field horizontally and add
+  seed-jittered 2,048-block group cells with additive soft boundaries,
+  multi-frequency coastline warp, saturated far-void bias, and a bounded
+  descriptor cache. The field remains empty outside Y=-64..255.
+- Use the hybrid density for preliminary and final terrain while inheriting the
+  active Overworld/Terralith climate, biome source, surfaces, spawn targets,
+  ores, carvers, and features.
+
+### Compatibility and customization
+- Add backward-compatible `terrain_mode`; missing values remain
+  `continental_envelope`, while the new preset selects `exosphere_hybrid`.
+- Publish hybrid scale, density threshold, spacing, radius, transition, warp,
+  and void-strength controls in `exosphere_hybrid_islands.json`.
+- Generalize contained lakes to both terrain engines and retain the complete
+  shoreline, 32-block safety margin, and 48-block solid-depth checks.
+- Recalibrate sparse cave-biome exposure for the hybrid density while keeping
+  approximately 2% coverage and the wet-climate bias.
+- Reject only fully detached structure starts. Partially exposed starts keep
+  every mod-requested coordinate and are never translated or forcibly buried.
+- Restore Integrated Stronghold's installed Y=15 request instead of projecting
+  it to the surface. Keep bounded validation, weighted fallback, and the IDAS
+  locate cap.
+
 ## [1.4.0] — 2026-07-31
 
 ### Island silhouette revision

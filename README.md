@@ -1,10 +1,11 @@
 # Sky World
 
-Sky World adds a selectable NeoForge 1.21.1 world preset made of large
-floating islands over the void. It keeps the normal `Default` preset intact
-and merges the active Overworld climate and surface rules into the island
-generator, so Terralith, OTBWG, and biome-owned cave features can populate the
-islands in the appropriate places.
+Sky World adds two selectable NeoForge 1.21.1 floating-island presets. The
+continental preset keeps the v1.4 envelope engine; **Sky World – Exosphere
+Hybrid** uses Exosphere-style three-dimensional island volume with larger void
+gaps. Both keep `Default` intact and merge the active Overworld climate and
+surface rules so Terralith, OTBWG, and biome-owned features populate the
+appropriate places.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![NeoForge 1.21.1](https://img.shields.io/badge/NeoForge-1.21.1-orange.svg)](https://neoforged.net)
@@ -13,7 +14,8 @@ islands in the appropriate places.
 ## Creating a world
 
 1. Install Sky World and Isekai API.
-2. Select **Sky World** in the World Type control when creating a world.
+2. Select **Sky World** or **Sky World – Exosphere Hybrid** in the World Type
+   control when creating a world.
 3. Create a new world. Worldgen changes only affect newly generated chunks.
 
 Create a new Sky World after upgrading from 1.1.0. Worlds first created with
@@ -26,9 +28,17 @@ On a dedicated server, use:
 level-type=sky_world\:sky_world
 ```
 
+For the hybrid preset, use:
+
+```properties
+level-type=sky_world\:exosphere_hybrid
+```
+
 Leaving the world type on `Default` produces normal terrain.
 
 ## Terrain and caves
+
+### Sky World (continental envelope)
 
 The Sky World generator divides the world into seed-dependent island groups
 and intersects each connected floating-island envelope with the active
@@ -59,12 +69,28 @@ creation and combines them with `sky_world:overworld`. That means:
 - The extra lighting and vines are generator-gated and never run in a
   `Default` world.
 
-Sky World intentionally keeps its own final density, so it retains floating
+The continental preset intentionally keeps its own final density, so it retains floating
 islands rather than reproducing Terralith's continental terrain shapes.
 Continental and medium groups may also receive contained lakes. Every lake
 validates its full shoreline, a 32-block safety ring, and 48 blocks of island
 depth before carving; failed checks leave terrain untouched instead of making
-waterfalls into the void. Rivers are not generated in 1.4.0.
+waterfalls into the void. Rivers are not generated in 1.5.0.
+
+### Sky World – Exosphere Hybrid
+
+The hybrid preset uses `minecraft:end/base_3d_noise` with Exosphere's original
+vertical density profile, including meaningful high and low islands between
+Y=-64 and Y=255. Horizontal sampling defaults to 3x scale. A seed-dependent,
+soft group field expands the islands and suppresses terrain far outside each
+group without hard-clipping the natural 3D noise, so coastlines, undersides,
+satellites, and caves come from the noise instead of circles or conical keels.
+
+Hybrid group centers are roughly 2,048 blocks apart, with 700–850 block group
+radii, 320 blocks of soft transition, and up to 192 blocks of boundary warp.
+Typical major footprints target roughly 1,000–1,500 blocks across and ordinary
+void crossings target 200–800 blocks. Terralith/OTBWG still own climates,
+biome selection, surfaces, vegetation, ores, carvers, and features; Exosphere
+itself remains disabled and is not a dependency.
 
 ## Customization
 
@@ -87,6 +113,17 @@ The main tuning resources are:
 - `data/sky_world/worldgen/world_preset/sky_world.json`
   - `surface_shift`: upward shift applied to the active Overworld terrain;
     defaults to `96` when absent so older serialized generators still decode.
+- `data/sky_world/worldgen/density_function/exosphere_hybrid_islands.json`
+  - `horizontal_scale` and `vertical_scale`: coordinate scaling for Exosphere's
+    base 3D noise. The defaults are `3.0` and `1.0`.
+  - `density_threshold`: global solid/void cutoff adjustment.
+  - `cell_spacing` and `center_jitter`: macro-group layout.
+  - `min_group_radius` / `max_group_radius`, `group_transition`, `edge_warp`,
+    and `void_strength`: footprint size, soft-edge width, irregularity, and
+    far-void suppression.
+- `data/sky_world/worldgen/world_preset/exosphere_hybrid.json`
+  - `terrain_mode: "exosphere_hybrid"` selects the new engine. Missing
+    `terrain_mode` values decode as `continental_envelope` for old worlds.
 - `data/sky_world/worldgen/placed_feature/hanging_glow_lichen.json`
   - `count.min_inclusive` and `count.max_inclusive`: glow-lichen frequency.
 - `data/sky_world/worldgen/placed_feature/hanging_cave_vines.json`
@@ -96,8 +133,8 @@ The main tuning resources are:
   - biome groups that receive glow-berry vines.
 
 These resources can be overridden by a higher-priority datapack. Existing
-chunks never change, and newly generated 1.4.0 chunks will not blend cleanly
-into the old End-noise shape, so use fresh worlds for terrain validation.
+chunks never change, and chunks from different terrain engines will not blend
+cleanly, so use fresh worlds for terrain validation.
 
 ## Compatibility
 
@@ -115,14 +152,13 @@ The compatibility test stack currently covers:
 Sky World no longer installs a dimension-wide Isekai structure predicate.
 This avoids the unbounded structure-surface search that previously caused
 `/locate` to stall for Integrated structures. The Integrated Stronghold
-resource still projects its start to `WORLD_SURFACE_WG`.
+resource keeps the mod's requested Y=15 position.
 
-Sky World 1.4.0 additionally validates a bounded sample of every generated
-structure start against the island envelope. A start with representative
-pieces hanging in the void is rejected before pieces and terrain-adjustment
-blobs generate. The validator has a hard density-sample budget and never uses
-an unbounded surface search. Mods that intentionally place free-floating sky
-structures may need a future opt-out tag.
+Sky World validates a bounded sample of every generated structure start
+against the selected terrain density. Fully detached starts are rejected
+before pieces and terrain-adjustment blobs generate; partially exposed starts
+are retained at their original coordinates. The validator has a hard
+density-sample budget and never uses an unbounded surface search.
 
 IDAS groups dozens of individual structures into shared placements, and its
 locate mixin requests an unusually large search. In Sky World, IDAS-only
@@ -136,7 +172,7 @@ instead of loading hundreds of void candidates until the watchdog fires.
 .\gradlew.bat build
 ```
 
-The built mod is `build/libs/sky_world-1.4.0.jar`.
+The built mod is `build/libs/sky_world-1.5.0.jar`.
 
 ## License
 
