@@ -9,6 +9,8 @@ import net.minecraft.world.level.levelgen.DensityFunctions;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -53,11 +55,12 @@ final class ExosphereHybridDensityFunctionTest {
         for (int cellX = -8; cellX <= 8; cellX++) {
             for (int cellZ = -8; cellZ <= 8; cellZ++) {
                 ExosphereGroupDescriptor descriptor = first.groupDescriptor(cellX, cellZ);
+                ExosphereLatticePoint latticeCenter = first.latticeCenter(cellX, cellZ);
                 assertEquals(descriptor, same.groupDescriptor(cellX, cellZ));
-                assertTrue(Math.abs(descriptor.centerX() - cellX * SETTINGS.cellSpacing())
-                        <= SETTINGS.centerJitter());
-                assertTrue(Math.abs(descriptor.centerZ() - cellZ * SETTINGS.cellSpacing())
-                        <= SETTINGS.centerJitter());
+                assertTrue(Math.hypot(
+                        descriptor.centerX() - latticeCenter.x(),
+                        descriptor.centerZ() - latticeCenter.z()
+                ) <= SETTINGS.centerJitter());
                 assertTrue(descriptor.radius() >= SETTINGS.minGroupRadius());
                 assertTrue(descriptor.radius() <= SETTINGS.maxGroupRadius());
             }
@@ -67,17 +70,40 @@ final class ExosphereHybridDensityFunctionTest {
     }
 
     @Test
-    void groupFieldDoesNotResetAcrossCellBorders() {
+    void groupFieldStaysContinuousAcrossTriangularNeighborMidpoints() {
         ExosphereHybridDensityFunction function = function(556677L);
-        int halfCell = SETTINGS.cellSpacing() / 2;
         double largestJump = 0.0;
+        int[][] neighbors = {
+                {1, 0}, {0, 1}, {-1, 1},
+                {-1, 0}, {0, -1}, {1, -1}
+        };
 
-        for (int border = -3; border <= 3; border++) {
-            int borderX = border * SETTINGS.cellSpacing() + halfCell;
-            for (int z = -SETTINGS.cellSpacing(); z <= SETTINGS.cellSpacing(); z += 16) {
-                double left = function.groupBias(borderX - 1, z);
-                double right = function.groupBias(borderX + 1, z);
-                largestJump = Math.max(largestJump, Math.abs(left - right));
+        for (int cellX = -3; cellX <= 3; cellX++) {
+            for (int cellZ = -3; cellZ <= 3; cellZ++) {
+                ExosphereGroupDescriptor group = function.groupDescriptor(cellX, cellZ);
+                for (int[] offset : neighbors) {
+                    ExosphereGroupDescriptor neighbor = function.groupDescriptor(
+                            cellX + offset[0],
+                            cellZ + offset[1]
+                    );
+                    double midpointX = (group.centerX() + neighbor.centerX()) * 0.5;
+                    double midpointZ = (group.centerZ() + neighbor.centerZ()) * 0.5;
+                    double distance = Math.hypot(
+                            neighbor.centerX() - group.centerX(),
+                            neighbor.centerZ() - group.centerZ()
+                    );
+                    double normalX = (neighbor.centerX() - group.centerX()) / distance;
+                    double normalZ = (neighbor.centerZ() - group.centerZ()) / distance;
+                    double first = function.groupBias(
+                            (int)Math.round(midpointX - normalX),
+                            (int)Math.round(midpointZ - normalZ)
+                    );
+                    double second = function.groupBias(
+                            (int)Math.round(midpointX + normalX),
+                            (int)Math.round(midpointZ + normalZ)
+                    );
+                    largestJump = Math.max(largestJump, Math.abs(first - second));
+                }
             }
         }
 
@@ -87,13 +113,15 @@ final class ExosphereHybridDensityFunctionTest {
     @Test
     void farOutsideEveryGroupSaturatesToNegativeVoidBias() {
         ExosphereHybridDensityFunction function = function(778899L);
-        int halfCell = SETTINGS.cellSpacing() / 2;
 
         for (int cellX = -5; cellX <= 5; cellX++) {
             for (int cellZ = -5; cellZ <= 5; cellZ++) {
+                ExosphereLatticePoint first = function.latticeCenter(cellX, cellZ);
+                ExosphereLatticePoint second = function.latticeCenter(cellX + 1, cellZ);
+                ExosphereLatticePoint third = function.latticeCenter(cellX, cellZ + 1);
                 double bias = function.groupBias(
-                        cellX * SETTINGS.cellSpacing() + halfCell,
-                        cellZ * SETTINGS.cellSpacing() + halfCell
+                        (int)Math.round((first.x() + second.x() + third.x()) / 3.0),
+                        (int)Math.round((first.z() + second.z() + third.z()) / 3.0)
                 );
                 assertTrue(bias <= -SETTINGS.voidStrength() * 0.80, "bias=" + bias);
             }
@@ -140,28 +168,140 @@ final class ExosphereHybridDensityFunctionTest {
     }
 
     @Test
-    void ordinaryNeighboringGroupsKeepCreateScaleVoidCrossings() {
-        ExosphereHybridDensityFunction function = function(1357911L);
-        int eligible = 0;
-        int inRange = 0;
+    void neighboringGroupsReserveAtLeastFifteenHundredBlocksOfFullVoidInfluence() {
+        int[][] forwardNeighbors = {
+                {1, 0},
+                {0, 1},
+                {-1, 1}
+        };
+        double minimumGap = Double.MAX_VALUE;
+        double guaranteedLowerBound = SETTINGS.cellSpacing()
+                - SETTINGS.centerJitter() * 2.0
+                - (SETTINGS.maxGroupRadius()
+                + SETTINGS.edgeWarp()
+                + SETTINGS.groupTransition()) * 2.0;
 
-        for (int cellX = -50; cellX < 50; cellX++) {
-            for (int cellZ = -50; cellZ <= 50; cellZ++) {
-                ExosphereGroupDescriptor left = function.groupDescriptor(cellX, cellZ);
-                ExosphereGroupDescriptor right = function.groupDescriptor(cellX + 1, cellZ);
-                double gap = Math.hypot(
-                        left.centerX() - right.centerX(),
-                        left.centerZ() - right.centerZ()
-                ) - left.radius() - right.radius();
-                eligible++;
-                if (gap >= 200.0 && gap <= 800.0) {
-                    inRange++;
+        assertTrue(guaranteedLowerBound >= 1_500.0,
+                "configured full-influence lower bound=" + guaranteedLowerBound);
+
+        for (long seed = 0; seed < 16; seed++) {
+            ExosphereHybridDensityFunction function = function(seed);
+            for (int cellX = -8; cellX <= 8; cellX++) {
+                for (int cellZ = -8; cellZ <= 8; cellZ++) {
+                    ExosphereGroupDescriptor group = function.groupDescriptor(cellX, cellZ);
+                    for (int[] offset : forwardNeighbors) {
+                        ExosphereGroupDescriptor neighbor = function.groupDescriptor(
+                                cellX + offset[0],
+                                cellZ + offset[1]
+                        );
+                        double gap = Math.hypot(
+                                group.centerX() - neighbor.centerX(),
+                                group.centerZ() - neighbor.centerZ()
+                        ) - group.radius() - neighbor.radius()
+                                - SETTINGS.edgeWarp() * 2.0
+                                - SETTINGS.groupTransition() * 2.0;
+                        minimumGap = Math.min(minimumGap, gap);
+                    }
                 }
             }
         }
 
-        assertTrue(inRange / (double)eligible >= 0.90,
-                "travel-range crossings=" + inRange + "/" + eligible);
+        assertTrue(minimumGap >= 1_500.0, "minimum full-influence gap=" + minimumGap);
+    }
+
+    @Test
+    void unitBaseNoiseCannotLeakTerrainIntoReservedVoidCorridors() {
+        int[][] forwardNeighbors = {
+                {1, 0},
+                {0, 1},
+                {-1, 1}
+        };
+
+        for (long seed = 0; seed < 8; seed++) {
+            ExosphereHybridDensityFunction function = function(seed, 1.0);
+            ExosphereGroupDescriptor group = function.groupDescriptor(0, 0);
+            for (int[] offset : forwardNeighbors) {
+                ExosphereGroupDescriptor neighbor = function.groupDescriptor(
+                        offset[0],
+                        offset[1]
+                );
+                int midpointX = (int)Math.round((group.centerX() + neighbor.centerX()) * 0.5);
+                int midpointZ = (int)Math.round((group.centerZ() + neighbor.centerZ()) * 0.5);
+                for (int y = ExosphereDensityProfile.MIN_Y;
+                     y <= ExosphereDensityProfile.MAX_Y;
+                     y += 8) {
+                    assertTrue(sample(function, midpointX, y, midpointZ) < 0.0,
+                            "solid corridor sample at " + midpointX + "," + y + "," + midpointZ);
+                }
+            }
+        }
+    }
+
+    @Test
+    void sixNearestGroupsHaveTriangularRatherThanSquareGridSpacing() {
+        int matchingSeeds = 0;
+
+        for (long seed = 0; seed < 32; seed++) {
+            ExosphereHybridDensityFunction function = function(seed);
+            ExosphereGroupDescriptor origin = function.groupDescriptor(0, 0);
+            double[] distances = new double[24];
+            int index = 0;
+            for (int cellX = -2; cellX <= 2; cellX++) {
+                for (int cellZ = -2; cellZ <= 2; cellZ++) {
+                    if (cellX == 0 && cellZ == 0) {
+                        continue;
+                    }
+                    ExosphereGroupDescriptor group = function.groupDescriptor(cellX, cellZ);
+                    distances[index++] = Math.hypot(
+                            origin.centerX() - group.centerX(),
+                            origin.centerZ() - group.centerZ()
+                    );
+                }
+            }
+            Arrays.sort(distances);
+            if (distances[5] / distances[0] < 1.25) {
+                matchingSeeds++;
+            }
+        }
+
+        assertTrue(matchingSeeds >= 30, "triangular nearest rings=" + matchingSeeds + "/32");
+    }
+
+    @Test
+    void nearestGroupBearingIsNotLockedToCardinalAxes() {
+        int nonCardinalSeeds = 0;
+
+        for (long seed = 0; seed < 64; seed++) {
+            ExosphereHybridDensityFunction function = function(seed);
+            ExosphereGroupDescriptor origin = function.groupDescriptor(0, 0);
+            double nearestDistance = Double.MAX_VALUE;
+            double nearestBearing = 0.0;
+
+            for (int cellX = -2; cellX <= 2; cellX++) {
+                for (int cellZ = -2; cellZ <= 2; cellZ++) {
+                    if (cellX == 0 && cellZ == 0) {
+                        continue;
+                    }
+                    ExosphereGroupDescriptor group = function.groupDescriptor(cellX, cellZ);
+                    double dx = group.centerX() - origin.centerX();
+                    double dz = group.centerZ() - origin.centerZ();
+                    double distance = Math.hypot(dx, dz);
+                    if (distance < nearestDistance) {
+                        nearestDistance = distance;
+                        nearestBearing = Math.toDegrees(Math.atan2(dz, dx));
+                    }
+                }
+            }
+
+            double normalized = Math.floorMod((int)Math.round(nearestBearing), 90);
+            double cardinalOffset = Math.min(normalized, 90.0 - normalized);
+            if (cardinalOffset > 10.0) {
+                nonCardinalSeeds++;
+            }
+        }
+
+        assertTrue(nonCardinalSeeds >= 40,
+                "non-cardinal nearest bearings=" + nonCardinalSeeds + "/64");
     }
 
     @Test
@@ -206,8 +346,12 @@ final class ExosphereHybridDensityFunctionTest {
     }
 
     private static ExosphereHybridDensityFunction function(long seed) {
+        return function(seed, 0.0);
+    }
+
+    private static ExosphereHybridDensityFunction function(long seed, double baseDensity) {
         return new ExosphereHybridDensityFunction(
-                DensityFunctions.constant(0.0),
+                DensityFunctions.constant(baseDensity),
                 noise(seed, -7),
                 noise(seed ^ 0x9E3779B97F4A7C15L, -5),
                 SETTINGS

@@ -29,11 +29,16 @@ public final class ExosphereHybridDensityFunction implements DensityFunction {
     private static final long CELL_X_SALT = 0x9E3779B97F4A7C15L;
     private static final long CELL_Z_SALT = 0xD1B54A32D192ED03L;
     private static final double INSIDE_STRENGTH_FACTOR = 0.02;
+    private static final double SQRT_THREE = Math.sqrt(3.0);
+    private static final long LAYOUT_ROTATION_SALT = 0xA24BAED4963EE407L;
 
     private final DensityFunction baseNoise;
     private final DensityFunction.NoiseHolder layoutNoise;
     private final DensityFunction.NoiseHolder edgeNoise;
     private final ExosphereHybridSettings settings;
+    private final long layoutEntropy;
+    private final double latticeCos;
+    private final double latticeSin;
     private final ConcurrentHashMap<Long, ExosphereGroupDescriptor> groupCache =
             new ConcurrentHashMap<>();
 
@@ -47,6 +52,11 @@ public final class ExosphereHybridDensityFunction implements DensityFunction {
         this.layoutNoise = layoutNoise;
         this.edgeNoise = edgeNoise;
         this.settings = settings;
+        this.layoutEntropy = layoutEntropy(layoutNoise);
+        SplittableRandom layoutRandom = new SplittableRandom(layoutEntropy);
+        double latticeRotation = layoutRandom.nextDouble(0.0, Math.PI * 2.0);
+        this.latticeCos = Math.cos(latticeRotation);
+        this.latticeSin = Math.sin(latticeRotation);
     }
 
     DensityFunction baseNoise() {
@@ -93,15 +103,14 @@ public final class ExosphereHybridDensityFunction implements DensityFunction {
     }
 
     double groupBias(int blockX, int blockZ) {
-        int baseCellX = nearestCell(blockX);
-        int baseCellZ = nearestCell(blockZ);
+        ExosphereLatticeCell baseCell = nearestCell(blockX, blockZ);
         double strongestDistance = -Double.MAX_VALUE;
 
         for (int offsetX = -1; offsetX <= 1; offsetX++) {
             for (int offsetZ = -1; offsetZ <= 1; offsetZ++) {
                 ExosphereGroupDescriptor group = groupDescriptor(
-                        baseCellX + offsetX,
-                        baseCellZ + offsetZ
+                        baseCell.cellX() + offsetX,
+                        baseCell.cellZ() + offsetZ
                 );
                 double dx = blockX - group.centerX();
                 double dz = blockZ - group.centerZ();
@@ -151,10 +160,20 @@ public final class ExosphereHybridDensityFunction implements DensityFunction {
                 * settings.edgeWarp();
     }
 
-    private int nearestCell(int coordinate) {
-        return Math.floorDiv(
-                coordinate + settings.cellSpacing() / 2,
-                settings.cellSpacing()
+    ExosphereLatticeCell nearestCell(int blockX, int blockZ) {
+        double localX = blockX * latticeCos + blockZ * latticeSin;
+        double localZ = -blockX * latticeSin + blockZ * latticeCos;
+        double fractionalZ = localZ * 2.0 / (SQRT_THREE * settings.cellSpacing());
+        double fractionalX = localX / settings.cellSpacing() - fractionalZ * 0.5;
+        return roundAxial(fractionalX, fractionalZ);
+    }
+
+    ExosphereLatticePoint latticeCenter(int cellX, int cellZ) {
+        double localX = settings.cellSpacing() * (cellX + cellZ * 0.5);
+        double localZ = settings.cellSpacing() * (SQRT_THREE * 0.5 * cellZ);
+        return new ExosphereLatticePoint(
+                localX * latticeCos - localZ * latticeSin,
+                localX * latticeSin + localZ * latticeCos
         );
     }
 
@@ -182,29 +201,23 @@ public final class ExosphereHybridDensityFunction implements DensityFunction {
     }
 
     private ExosphereGroupDescriptor createGroupDescriptor(int cellX, int cellZ) {
-        double cellCenterX = (double)cellX * settings.cellSpacing();
-        double cellCenterZ = (double)cellZ * settings.cellSpacing();
+        ExosphereLatticePoint latticeCenter = latticeCenter(cellX, cellZ);
         double layoutSample = layoutNoise.getValue(
-                cellCenterX / settings.cellSpacing(),
+                latticeCenter.x() / settings.cellSpacing(),
                 0.0,
-                cellCenterZ / settings.cellSpacing()
+                latticeCenter.z() / settings.cellSpacing()
         );
         long entropy = mix64(
-                Double.doubleToLongBits(layoutSample)
+                layoutEntropy
+                        ^ Double.doubleToLongBits(layoutSample)
                         ^ cellX * CELL_X_SALT
                         ^ cellZ * CELL_Z_SALT
         );
         SplittableRandom random = new SplittableRandom(entropy);
-        double centerX = cellCenterX + ranged(
-                random,
-                -settings.centerJitter(),
-                settings.centerJitter()
-        );
-        double centerZ = cellCenterZ + ranged(
-                random,
-                -settings.centerJitter(),
-                settings.centerJitter()
-        );
+        double jitterAngle = random.nextDouble(0.0, Math.PI * 2.0);
+        double jitterDistance = Math.sqrt(random.nextDouble()) * settings.centerJitter();
+        double centerX = latticeCenter.x() + Math.cos(jitterAngle) * jitterDistance;
+        double centerZ = latticeCenter.z() + Math.sin(jitterAngle) * jitterDistance;
         double radius = ranged(
                 random,
                 settings.minGroupRadius(),
@@ -230,6 +243,37 @@ public final class ExosphereHybridDensityFunction implements DensityFunction {
 
     private static long cellKey(int cellX, int cellZ) {
         return ((long)cellX << 32) ^ (cellZ & 0xFFFFFFFFL);
+    }
+
+    private static long layoutEntropy(DensityFunction.NoiseHolder layoutNoise) {
+        double first = layoutNoise.getValue(37.25, 0.0, -91.75);
+        double second = layoutNoise.getValue(-113.5, 0.0, 53.25);
+        return mix64(
+                Double.doubleToLongBits(first)
+                        ^ Long.rotateLeft(Double.doubleToLongBits(second), 29)
+                        ^ LAYOUT_ROTATION_SALT
+        );
+    }
+
+    private static ExosphereLatticeCell roundAxial(double cellX, double cellZ) {
+        double cubeX = cellX;
+        double cubeZ = cellZ;
+        double cubeY = -cubeX - cubeZ;
+        long roundedX = Math.round(cubeX);
+        long roundedY = Math.round(cubeY);
+        long roundedZ = Math.round(cubeZ);
+        double differenceX = Math.abs(roundedX - cubeX);
+        double differenceY = Math.abs(roundedY - cubeY);
+        double differenceZ = Math.abs(roundedZ - cubeZ);
+
+        if (differenceX > differenceY && differenceX > differenceZ) {
+            roundedX = -roundedY - roundedZ;
+        } else if (differenceY > differenceZ) {
+            roundedY = -roundedX - roundedZ;
+        } else {
+            roundedZ = -roundedX - roundedY;
+        }
+        return new ExosphereLatticeCell((int)roundedX, (int)roundedZ);
     }
 
     private static long mix64(long value) {
@@ -278,4 +322,10 @@ record ExosphereGroupDescriptor(
         double phaseX,
         double phaseZ
 ) {
+}
+
+record ExosphereLatticeCell(int cellX, int cellZ) {
+}
+
+record ExosphereLatticePoint(double x, double z) {
 }

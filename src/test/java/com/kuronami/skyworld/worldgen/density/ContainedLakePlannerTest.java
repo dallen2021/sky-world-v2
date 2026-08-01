@@ -123,6 +123,39 @@ final class ContainedLakePlannerTest {
     }
 
     @Test
+    void hybridLakeEnumerationFindsCandidatesOnTheRotatedLattice() {
+        ExosphereHybridDensityFunction hybrid = hybrid(11235813L);
+        ContainedLakePlanner.TerrainShape shape = ContainedLakePlanner.findShape(hybrid);
+        int candidates = 0;
+        int recovered = 0;
+
+        assertNotNull(shape);
+        for (int cellX = -12; cellX <= 12; cellX++) {
+            for (int cellZ = -12; cellZ <= 12; cellZ++) {
+                for (ContainedLakePlanner.LakeCandidate candidate :
+                        ContainedLakePlanner.candidatesForCell(shape, cellX, cellZ)) {
+                    candidates++;
+                    List<ContainedLakePlanner.LakeCandidate> intersecting =
+                            ContainedLakePlanner.candidatesIntersecting(
+                                    shape,
+                                    candidate.centerX() - candidate.radius(),
+                                    candidate.centerZ() - candidate.radius(),
+                                    candidate.centerX() + candidate.radius(),
+                                    candidate.centerZ() + candidate.radius()
+                            );
+                    if (intersecting.contains(candidate)) {
+                        recovered++;
+                    }
+                }
+            }
+        }
+
+        assertTrue(candidates > 100, "sampled candidates=" + candidates);
+        assertEquals(candidates, recovered,
+                "rotated-lattice lake candidates must remain discoverable by world bounds");
+    }
+
+    @Test
     void hybridLakeSafetyRejectsCandidatesThatApproachVoid() {
         ExosphereHybridDensityFunction hybrid = hybrid(97531864L, 0.06);
         ContainedLakePlanner.TerrainShape shape = ContainedLakePlanner.findShape(hybrid);

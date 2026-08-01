@@ -23,9 +23,9 @@ record ExosphereHybridSettings(
                             .forGetter(ExosphereHybridSettings::verticalScale),
                     Codec.doubleRange(-2.0, 2.0).optionalFieldOf("density_threshold", 0.0)
                             .forGetter(ExosphereHybridSettings::densityThreshold),
-                    Codec.intRange(512, 8192).optionalFieldOf("cell_spacing", 2048)
+                    Codec.intRange(512, 8192).optionalFieldOf("cell_spacing", 5120)
                             .forGetter(ExosphereHybridSettings::cellSpacing),
-                    Codec.intRange(0, 512).optionalFieldOf("center_jitter", 96)
+                    Codec.intRange(0, 512).optionalFieldOf("center_jitter", 384)
                             .forGetter(ExosphereHybridSettings::centerJitter),
                     Codec.doubleRange(64.0, 4096.0).optionalFieldOf("min_group_radius", 700.0)
                             .forGetter(ExosphereHybridSettings::minGroupRadius),
@@ -58,8 +58,8 @@ record ExosphereHybridSettings(
                 3.0,
                 1.0,
                 0.0,
-                2048,
-                96,
+                5120,
+                384,
                 700.0,
                 850.0,
                 320.0,

@@ -72,23 +72,19 @@ public final class ContainedLakePlanner {
             int maxX,
             int maxZ
     ) {
-        int cellSize = shape.cellSpacing();
-        int padding = 32;
-        int minCellX = Math.floorDiv(minX - padding, cellSize) - 1;
-        int maxCellX = Math.floorDiv(maxX + padding, cellSize) + 1;
-        int minCellZ = Math.floorDiv(minZ - padding, cellSize) - 1;
-        int maxCellZ = Math.floorDiv(maxZ + padding, cellSize) + 1;
         List<LakeCandidate> result = new ArrayList<>();
 
-        for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
-            for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
-                for (LakeCandidate candidate : candidatesForCell(shape, cellX, cellZ)) {
-                    if (candidate.centerX() + candidate.radius() >= minX
-                            && candidate.centerX() - candidate.radius() <= maxX
-                            && candidate.centerZ() + candidate.radius() >= minZ
-                            && candidate.centerZ() - candidate.radius() <= maxZ) {
-                        result.add(candidate);
-                    }
+        for (TerrainCell cell : shape.cellsNearBounds(minX, minZ, maxX, maxZ)) {
+            for (LakeCandidate candidate : candidatesForCell(
+                    shape,
+                    cell.cellX(),
+                    cell.cellZ()
+            )) {
+                if (candidate.centerX() + candidate.radius() >= minX
+                        && candidate.centerX() - candidate.radius() <= maxX
+                        && candidate.centerZ() + candidate.radius() >= minZ
+                        && candidate.centerZ() - candidate.radius() <= maxZ) {
+                    result.add(candidate);
                 }
             }
         }
@@ -238,12 +234,35 @@ public final class ContainedLakePlanner {
     public record LakeCandidate(int centerX, int centerZ, int radius, int depth) {
     }
 
+    record TerrainCell(int cellX, int cellZ) {
+    }
+
     public interface TerrainShape {
         DensityFunction density();
 
         int cellSpacing();
 
         List<LakeCandidate> candidatesForCell(int cellX, int cellZ);
+
+        default List<TerrainCell> cellsNearBounds(
+                int minX,
+                int minZ,
+                int maxX,
+                int maxZ
+        ) {
+            int cellSize = cellSpacing();
+            int minCellX = Math.floorDiv(minX - SAFETY_MARGIN, cellSize) - 1;
+            int maxCellX = Math.floorDiv(maxX + SAFETY_MARGIN, cellSize) + 1;
+            int minCellZ = Math.floorDiv(minZ - SAFETY_MARGIN, cellSize) - 1;
+            int maxCellZ = Math.floorDiv(maxZ + SAFETY_MARGIN, cellSize) + 1;
+            List<TerrainCell> cells = new ArrayList<>();
+            for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
+                for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
+                    cells.add(new TerrainCell(cellX, cellZ));
+                }
+            }
+            return cells;
+        }
     }
 
     private record ContinentalShape(
@@ -308,6 +327,41 @@ public final class ContainedLakePlanner {
                 }
             }
             return List.copyOf(candidates);
+        }
+
+        @Override
+        public List<TerrainCell> cellsNearBounds(
+                int minX,
+                int minZ,
+                int maxX,
+                int maxZ
+        ) {
+            int paddedMinX = minX - SAFETY_MARGIN;
+            int paddedMinZ = minZ - SAFETY_MARGIN;
+            int paddedMaxX = maxX + SAFETY_MARGIN;
+            int paddedMaxZ = maxZ + SAFETY_MARGIN;
+            int minimumCellX = Integer.MAX_VALUE;
+            int maximumCellX = Integer.MIN_VALUE;
+            int minimumCellZ = Integer.MAX_VALUE;
+            int maximumCellZ = Integer.MIN_VALUE;
+
+            for (int x : new int[]{paddedMinX, paddedMaxX}) {
+                for (int z : new int[]{paddedMinZ, paddedMaxZ}) {
+                    ExosphereLatticeCell cell = density.nearestCell(x, z);
+                    minimumCellX = Math.min(minimumCellX, cell.cellX());
+                    maximumCellX = Math.max(maximumCellX, cell.cellX());
+                    minimumCellZ = Math.min(minimumCellZ, cell.cellZ());
+                    maximumCellZ = Math.max(maximumCellZ, cell.cellZ());
+                }
+            }
+
+            List<TerrainCell> cells = new ArrayList<>();
+            for (int cellX = minimumCellX - 1; cellX <= maximumCellX + 1; cellX++) {
+                for (int cellZ = minimumCellZ - 1; cellZ <= maximumCellZ + 1; cellZ++) {
+                    cells.add(new TerrainCell(cellX, cellZ));
+                }
+            }
+            return cells;
         }
     }
 }

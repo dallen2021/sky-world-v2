@@ -166,8 +166,8 @@ final class CompatibilityResourcesTest {
         assertEquals(3.0, settings.get("horizontal_scale").getAsDouble());
         assertEquals(1.0, settings.get("vertical_scale").getAsDouble());
         assertEquals(0.0, settings.get("density_threshold").getAsDouble());
-        assertEquals(2048, settings.get("cell_spacing").getAsInt());
-        assertEquals(96, settings.get("center_jitter").getAsInt());
+        assertEquals(5120, settings.get("cell_spacing").getAsInt());
+        assertEquals(384, settings.get("center_jitter").getAsInt());
         assertEquals(700.0, settings.get("min_group_radius").getAsDouble());
         assertEquals(850.0, settings.get("max_group_radius").getAsDouble());
         assertEquals(320.0, settings.get("group_transition").getAsDouble());

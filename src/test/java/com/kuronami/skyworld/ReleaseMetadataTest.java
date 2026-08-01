@@ -11,17 +11,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class ReleaseMetadataTest {
     @Test
-    void releaseMetadataAgreesOnVersionOneFive() throws IOException {
+    void releaseMetadataAgreesOnVersionOneFiveTwo() throws IOException {
         String properties = read("gradle.properties");
         String pack = read("src/main/resources/pack.mcmeta");
         String readme = read("README.md");
         String changelog = read("CHANGELOG.md");
 
-        assertTrue(properties.contains("mod_version=1.5.1"));
-        assertTrue(pack.contains("Sky World 1.5.1"));
-        assertTrue(readme.contains("sky_world-1.5.1.jar"));
-        assertTrue(changelog.contains("## [1.5.1]"));
-        assertTrue(SkyWorld.VERSION.equals("1.5.1"));
+        assertTrue(properties.contains("mod_version=1.5.2"));
+        assertTrue(pack.contains("Sky World 1.5.2"));
+        assertTrue(readme.contains("sky_world-1.5.2.jar"));
+        assertTrue(changelog.contains("## [1.5.2]"));
+        assertTrue(SkyWorld.VERSION.equals("1.5.2"));
     }
 
     private static String read(String path) throws IOException {

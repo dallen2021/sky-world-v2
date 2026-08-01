@@ -85,12 +85,14 @@ soft group field expands the islands and suppresses terrain far outside each
 group without hard-clipping the natural 3D noise, so coastlines, undersides,
 satellites, and caves come from the noise instead of circles or conical keels.
 
-Hybrid group centers are roughly 2,048 blocks apart, with 700–850 block group
-radii, 320 blocks of soft transition, and up to 192 blocks of boundary warp.
-Typical major footprints target roughly 1,000–1,500 blocks across and ordinary
-void crossings target 200–800 blocks. Terralith/OTBWG still own climates,
-biome selection, surfaces, vegetation, ores, carvers, and features; Exosphere
-itself remains disabled and is not a dependency.
+Hybrid groups use a seed-rotated triangular layout with 5,120-block
+nearest-neighbor spacing and up to 384 blocks of radial jitter. With 700–850
+block group radii, 320 blocks of soft transition, and up to 192 blocks of
+boundary warp, the conservative minimum gap between complete neighboring
+influence regions is 1,628 blocks. Typical major footprints remain roughly
+1,000–1,500 blocks across. Terralith/OTBWG still own climates, biome selection,
+surfaces, vegetation, ores, carvers, and features; Exosphere itself remains
+disabled and is not a dependency.
 
 ## Customization
 
@@ -172,7 +174,7 @@ instead of loading hundreds of void candidates until the watchdog fires.
 .\gradlew.bat build
 ```
 
-The built mod is `build/libs/sky_world-1.5.1.jar`.
+The built mod is `build/libs/sky_world-1.5.2.jar`.
 
 ## License
 

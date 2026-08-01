@@ -6,6 +6,18 @@ development-only and not released.
 
 ## [Unreleased]
 
+## [1.5.2] — 2026-07-31
+
+### Changed
+- Replace the Exosphere Hybrid square macro-cell layout with a seed-rotated
+  triangular lattice and bounded radial jitter, removing the fixed north,
+  east, south, and west pattern around spawn.
+- Increase hybrid nearest-neighbor spacing to 5,120 blocks. Even after the
+  maximum group radius, coastline warp, soft transition, and opposing jitter,
+  neighboring group-influence regions retain at least 1,628 blocks of void.
+- Update contained-lake enumeration to transform world bounds through the
+  rotated hybrid lattice so eligible lakes remain discoverable in every chunk.
+
 ## [1.5.1] — 2026-07-31
 
 ### Fixed
