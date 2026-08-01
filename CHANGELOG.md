@@ -6,6 +6,14 @@ development-only and not released.
 
 ## [Unreleased]
 
+## [1.5.1] — 2026-07-31
+
+### Fixed
+- Feed the Exosphere Hybrid preliminary-surface pass a sign-preserving solid/
+  void classifier, allowing inherited vanilla, Terralith, and OTBWG surface
+  rules to recognize island tops. Final terrain density and island silhouettes
+  remain unchanged.
+
 ## [1.5.0] — 2026-07-31
 
 ### Exosphere Hybrid preset

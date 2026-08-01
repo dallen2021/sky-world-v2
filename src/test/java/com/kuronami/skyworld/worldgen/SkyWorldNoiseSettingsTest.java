@@ -193,7 +193,7 @@ final class SkyWorldNoiseSettingsTest {
         DensityFunction.FunctionContext point =
                 new DensityFunction.SinglePointContext(0, 128, 0);
 
-        assertEquals(0.30,
+        assertEquals(1.0,
                 merged.noiseRouter().initialDensityWithoutJaggedness().compute(point));
         assertEquals(0.30, merged.noiseRouter().finalDensity().compute(point));
         assertTrue(merged.noiseRouter().depth() instanceof
@@ -204,6 +204,43 @@ final class SkyWorldNoiseSettingsTest {
         assertEquals(0.025, caveDepth.boundaryBand());
         assertSame(active.noiseRouter().temperature(), merged.noiseRouter().temperature());
         assertSame(active.surfaceRule(), merged.surfaceRule());
+    }
+
+    @Test
+    void hybridPreliminaryDensityClassifiesWeakSolidAsSurface() {
+        NoiseGeneratorSettings active = settingsStartingAt(1.0, false);
+        NoiseGeneratorSettings weakSolid = withTerrainDensities(
+                settingsStartingAt(101.0, true),
+                0.01,
+                0.01
+        );
+        NoiseGeneratorSettings voidTerrain = withTerrainDensities(
+                settingsStartingAt(101.0, true),
+                -0.01,
+                -0.01
+        );
+        DensityFunction.FunctionContext point =
+                new DensityFunction.SinglePointContext(0, 128, 0);
+
+        NoiseGeneratorSettings solidMerged = SkyWorldNoiseSettings.merge(
+                active,
+                weakSolid,
+                96,
+                TerrainMode.EXOSPHERE_HYBRID
+        );
+        NoiseGeneratorSettings voidMerged = SkyWorldNoiseSettings.merge(
+                active,
+                voidTerrain,
+                96,
+                TerrainMode.EXOSPHERE_HYBRID
+        );
+
+        assertTrue(solidMerged.noiseRouter().initialDensityWithoutJaggedness()
+                .compute(point) > 0.390625);
+        assertEquals(0.01, solidMerged.noiseRouter().finalDensity().compute(point));
+        assertTrue(voidMerged.noiseRouter().initialDensityWithoutJaggedness()
+                .compute(point) < 0.390625);
+        assertEquals(-0.01, voidMerged.noiseRouter().finalDensity().compute(point));
     }
 
     @Test

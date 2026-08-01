@@ -36,7 +36,13 @@ final class SkyWorldNoiseSettings {
         DensityFunction combinedInitialDensity;
         DensityFunction combinedFinalDensity;
         if (terrainMode == TerrainMode.EXOSPHERE_HYBRID) {
-            combinedInitialDensity = islandEnvelope;
+            combinedInitialDensity = DensityFunctions.rangeChoice(
+                    islandEnvelope,
+                    Double.MIN_VALUE,
+                    Double.MAX_VALUE,
+                    DensityFunctions.constant(1.0),
+                    DensityFunctions.constant(-1.0)
+            );
             combinedFinalDensity = islandEnvelope;
         } else {
             DensityFunction shiftedInitialDensity = DensityFunctions.interpolated(

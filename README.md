@@ -172,7 +172,7 @@ instead of loading hundreds of void candidates until the watchdog fires.
 .\gradlew.bat build
 ```
 
-The built mod is `build/libs/sky_world-1.5.0.jar`.
+The built mod is `build/libs/sky_world-1.5.1.jar`.
 
 ## License
 
